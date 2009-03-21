@@ -1,0 +1,20 @@
+# ----------------------------machine dependent file
+DENDRO = /home/ilashuk/Dendro
+CFLAGS = -O0 -g -DDEBUG_LET -DUSE_ALLTOALLV_FIX -DUSE_ALLGATHER_FIX -DPETSC_USE_LOG # -Wp64 
+FFLAGS =
+CPPFLAGS = -I.. -I/ronaldo/pkg/fftw/fftw-3.1.2/include -I${DENDRO}/include/oct -I${DENDRO}/include/point -I${DENDRO}/include -I${DENDRO}/include/par -I${DENDRO}/include/binOps -I${DENDRO}/include/seq
+FPPFLAGS =
+LIBS = -L/ronaldo/pkg/fftw/fftw-3.1.2/lib -lfftw3 -L${DENDRO}/lib -lOct -lPar -lBinOps  -lSys -lPC # -lTest -lPoint
+AR = ar
+ARFLAGS = -r
+RANLIB = ranlib
+
+include ${PETSC_DIR}/bmake/common/base
+
+
+%.d: %.cpp
+	@set -e; rm -f $@; \
+	  ${PCC} -MM ${PCC_FLAGS} ${CFLAGS} ${CCPPFLAGS} $< > $@.$$$$; \
+	  sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+	  rm -f $@.$$$$
+

@@ -1,0 +1,15 @@
+-numsrc 500
+-preload_numsrc 2 	%number of source points WHEN PRELOADING
+
+-numtrg 100
+-preload_numtrg 1	%number of target points (where the potential needs to be evaluated) WHEN PRELOADING
+
+-kt 321	                 %stokes equation, double layer, evaluating hydrostatic potential
+
+-fmm3d_np 4
+-fmm3d_let3d_ptsmax 1
+-fmm3d_let3d_maxlevel 30
+
+% -useRegularOctreeAtLevel 4  % will use same number of levels for preloading!
+
+
