@@ -1,0 +1,30 @@
+% -eval_skip_communication
+
+% -vecscatter_merge
+-malloc
+-malloc_debug
+-malloc_dump
+% -malloc_info
+
+-log_summary
+-log_trace
+-repartition uniformOct
+-distribution ball % two_balls_vert % 
+% -isogranular
+-numsrc 4000		%number of source points
+
+-time_step 5
+% -particle_size 0.0316
+-volume_ratio 0.15
+-num_iter 300
+-write_fraction 2
+
+-preserve_order
+
+-fmm3d_np 4
+-fmm3d_let3d_ptsmax 100  % FIND OUT OPTIMAL!
+-fmm3d_let3d_maxlevel 30
+
+% -useRegularOctreeAtLevel 4  % will use same number of levels for preloading!
+
+
