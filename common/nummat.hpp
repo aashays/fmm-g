@@ -21,6 +21,9 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "numvec.hpp"
 
+extern "C" void* memset (void *, int, size_t);
+extern "C" void* memcpy (void *, const void *, size_t);
+
 //! Class template definition.  F can be any type, mostly used as data for the FMM purposes
 template <class F>
 //! NumMat is a matrix made up of a size and data.  The data can be made up of any type (ints, double, bools, etc.)

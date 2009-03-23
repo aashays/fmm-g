@@ -7,6 +7,7 @@
 #endif
 
 #include "sstream"
+#include <cstring>
 
 using namespace std;
 

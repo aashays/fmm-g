@@ -22,6 +22,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #ifdef HAVE_TAU
 #include <Profile/Profiler.h>
 #endif
+#include <cstring>
 
 using namespace std;
 
