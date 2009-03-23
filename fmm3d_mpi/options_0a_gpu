@@ -1,0 +1,53 @@
+-do_2nd_eval
+-gpu_ulist
+
+-u_weight 10
+-v_weight 1
+-w_weight 1
+-x_weight 1
+
+% -info
+% -eval_skip_communication
+
+% -vecscatter_merge
+-vecscatter_alltoall
+
+-malloc
+% -malloc_debug
+-malloc_dump
+% -malloc_info
+
+-log_summary
+% -log_trace whereItCrashes
+
+% -balance_octree
+-repartition  weighted_leaves %blockPart % uniformOct
+
+-distribution uniform %ellipseUniformAngles % 
+-isogranular
+-numsrc 200000            %number of source points
+-preload_numsrc 5    %number of source points WHEN PRELOADING
+
+% -trgs_and_srcs_coinc
+-numtrg 200000         %number of target points (where the potential needs to be evaluated)
+ -preload_numtrg 10  %number of target points (where the potential needs to be evaluated) WHEN PRELOADING
+
+% -numchk and -preload_numchk are ignored when -check_all and
+% -preload_check_all are set, respectively
+
+-numchk 1
+% -preload_numchk 1
+
+% -check_all
+-preload_check_all
+
+% -kt 111                  % stokes equation, single layer velocity
+-kt 121                    %laplace equation, single layer, evaluating potential
+
+-fmm3d_np 4
+-fmm3d_let3d_ptsmax 250  % FIND OUT OPTIMAL!
+-ptsMax 250
+-fmm3d_let3d_maxlevel 30
+
+% -useRegularOctreeAtLevel 4  % will use same number of levels for preloading!
+
