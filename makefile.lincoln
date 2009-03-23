@@ -1,15 +1,28 @@
 # ----------------------------machine dependent file
 DENDRO = ${HOME}/software/dendro/Dendro
+DENDRO_CPPFLAGS = \
+  -I${DENDRO}/include/oct \
+  -I${DENDRO}/include/point \
+  -I${DENDRO}/include \
+  -I${DENDRO}/include/par \
+  -I${DENDRO}/include/binOps \
+  -I${DENDRO}/include/seq
+
 CUDA_DIR = /usr/local/cuda
 CUDA_SDK_DIR = /u/ac/rvuduc/local/lincoln/NVIDIA_CUDA_SDK
 
+PETSC_DIR = /u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--icc
+
+FFTW_CPPFLAGS = -I/usr/local/intel/mkl/10.0.3.020/include/fftw
+FFTW_LDFLAGS = -L/usr/local/intel/mkl/10.0.3.020/lib -lfftw3xc_intel
+
 CFLAGS = -DPETSC_USE_LOG -DDEBUG_LET -O3 -g -Wall # -DUSE_ALLTOALLV_FIX -DUSE_ALLGATHER_FIX # -DNDEBUG -D_GLIBCXX_DEBUG 
 FFLAGS =
-CPPFLAGS = -DDS_ORG -I.. -I${DENDRO}/include/oct -I${DENDRO}/include/point -I${DENDRO}/include -I${DENDRO}/include/par -I${DENDRO}/include/binOps -I${DENDRO}/include/seq
+CPPFLAGS = -DDS_ORG -I.. $(DENDRO_CPPFLAGS) $(FFTW_CPPFLAGS)
 FPPFLAGS =
 
 CUDA_LIBS = -L${CUDA_DIR}/lib -L${CUDA_SDK_DIR}/lib -lcuda -lcudart -lcutil
-LIBS = -L/usr/local/apps/fftw/3.2alpha3/lib -lfftw3 -L${DENDRO}/lib -lOct -lPar -lBinOps -lSys -lPC ${CUDA_LIBS} # -lTest -lPoint #  
+LIBS = $(FFTW_LDFLAGS) -L${DENDRO}/lib -lOct -lPar -lBinOps -lSys -lPC ${CUDA_LIBS} # -lTest -lPoint #  
 AR = ar
 ARFLAGS = -r
 RANLIB = ranlib
@@ -17,7 +30,7 @@ RANLIB = ranlib
 NVCC = nvcc
 NVFLAGS = -DDS_ORG
 
-include ${PETSC_DIR}/conf/base
+include ${PETSC_DIR}/bmake/common/base
 
 
 %.o: %.cu
