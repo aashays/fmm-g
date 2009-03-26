@@ -2,7 +2,7 @@
 //#include <cutil.h>
 #include "../p3d/point3d.h"
 #include "gpu_setup.h"
-#include <iostream>
+//#include <iostream>
 #include <cassert>
 //#include <cutil_inline.h>
 
