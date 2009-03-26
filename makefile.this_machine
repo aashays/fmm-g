@@ -30,7 +30,7 @@ ARFLAGS = -r
 RANLIB = ranlib
 
 NVCC = nvcc
-NVFLAGS = -DDS_ORG -I$(CUDA_DIR)/include -I$(CUDA_SDK_DIR)/common/inc
+NVFLAGS = -DDS_ORG -I.. -I$(CUDA_DIR)/include -I$(CUDA_SDK_DIR)/common/inc
 
 include ${PETSC_DIR}/bmake/common/base
 

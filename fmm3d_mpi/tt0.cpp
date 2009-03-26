@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; see the file COPYING.  If not, write to the Free
 Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
+#include <cassert>
 #include "fmm3d_mpi.hpp"
 #include "manage_petsc_events.hpp"
 #include "sys/sys.h"
@@ -23,6 +24,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include <Profile/Profiler.h>
 #endif
 #include <cstring>
+
+#include "gpu_setup.h"
 
 using namespace std;
 
@@ -87,6 +90,24 @@ int main(int argc, char** argv)
   char per_core_summ_file_suffix[1024];
   PetscOptionsGetString(0,"-per_core_summary",per_core_summ_file_suffix,1024/*length*/,&per_core_summary);
 
+  // Initialize GPU device
+  PetscTruth gpu_ulist;
+  PetscOptionsHasName(0,"-gpu_ulist",&gpu_ulist);
+  if (gpu_ulist) {
+    size_t num_gpus = gpu_count ();
+    if (!num_gpus) {
+      cerr << "*** ERROR: No GPU devices available! ***" << endl;
+      return -1;
+    }
+    for (size_t dev_id = 0; dev_id < num_gpus; ++dev_id)
+      gpu_dumpinfo (dev_id);
+
+    int mpirank = MPI_Comm_rank (PETSC_COMM_WORLD, &mpirank);
+    assert (num_gpus);
+    cout << "==> For process p" << mpirank << ", selecting GPU #" << mpirank % num_gpus << endl;
+    gpu_select (mpirank % num_gpus);
+  }
+
   // make "Main Stage" invisible
   StageLog CurrentStageLog;
   PetscLogGetStageLog(&CurrentStageLog);
@@ -108,11 +129,12 @@ int main(int argc, char** argv)
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 
-    if (!mpirank)
+    if (!mpirank) {
       if (preloading)
 	cout<<endl<<"*** Dry run (preloading) ***"<<endl;
       else
 	cout<<endl<<"*** Final run ***"<<endl;
+    }
 
     int dim = 3;
     srand48( mpirank );

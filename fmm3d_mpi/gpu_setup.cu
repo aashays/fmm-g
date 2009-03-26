@@ -1,23 +1,79 @@
+#include <cassert>
+#include <cstdio>
 #include <cmath>
-//#include <cutil.h>
+#include <cutil.h>
+
 #include "../p3d/point3d.h"
 #include "gpu_setup.h"
-//#include <iostream>
-#include <cassert>
-//#include <cutil_inline.h>
-
 
 #define PI_4I 0.079577471F
 //#define PI_4I 1.0F
 
-//#define CERR
+#define CERR
 
-#ifdef CERR
-#define CE(C_Error) {  C_Error = cudaGetLastError();  cout<<cudaGetErrorString(C_Error)<<endl; }
+#if defined (CERR)
+#  define CE(fp) \
+   { \
+     cudaError_t C_E = cudaGetLastError (); \
+     if (C_E) \
+       fprintf ((fp), "*** [%s:%lu] CUDA ERROR: %s ***\n", __FILE__, __LINE__, cudaGetErrorString (C_E)); \
+   }
 #else
-#define CE(C_Error) {}
+#  define CE(fp)
 #endif
 
+size_t
+gpu_count (void)
+{
+ int dev_count;
+ CUDA_SAFE_CALL (cudaGetDeviceCount (&dev_count)); CE(stdout);
+  if (dev_count > 0) {
+    fprintf (stderr, "==> Found %d GPU device%s.\n",
+	     dev_count,
+	     dev_count == 1 ? "" : "s");
+    return (size_t)dev_count;
+  }
+  return 0; /* no devices found */
+}
+ 
+void
+gpu_dumpinfo (size_t dev_id)
+{
+  cudaDeviceProp p;
+  assert (dev_id < gpu_count ());
+  CUDA_SAFE_CALL(cudaGetDeviceProperties(&p, (int)dev_id)); CE(stdout);
+  fprintf (stderr, "==> Device %lu: \"%s\"\n", (unsigned long)dev_id, p.name);
+  fprintf (stderr, "    Major revision number:                         %d\n", p.major);
+  fprintf (stderr, "    Minor revision number:                         %d\n", p.minor);
+  fprintf (stderr, "    Total amount of global memory:                 %u MB\n", p.totalGlobalMem >> 20);
+#if CUDART_VERSION >= 2000
+  fprintf (stderr, "    Number of multiprocessors:                     %d\n", p.multiProcessorCount);
+  fprintf (stderr, "    Number of cores:                               %d\n", 8 * p.multiProcessorCount);
+#endif
+  fprintf (stderr, "    Total amount of constant memory:               %u MB\n", p.totalConstMem >> 20);
+  fprintf (stderr, "    Total amount of shared memory per block:       %u KB\n", p.sharedMemPerBlock >> 10);
+  fprintf (stderr, "    Total number of registers available per block: %d\n", p.regsPerBlock);
+  fprintf (stderr, "    Warp size:                                     %d\n", p.warpSize);
+  fprintf (stderr, "    Maximum number of threads per block:           %d\n", p.maxThreadsPerBlock);
+  fprintf (stderr, "    Maximum sizes of each dimension of a block:    %d x %d x %d\n",
+	   p.maxThreadsDim[0], p.maxThreadsDim[1], p.maxThreadsDim[2]);
+  fprintf (stderr, "    Maximum sizes of each dimension of a grid:     %d x %d x %d\n",
+	   p.maxGridSize[0], p.maxGridSize[1], p.maxGridSize[2]);
+  fprintf (stderr, "    Maximum memory pitch:                          %u bytes\n", p.memPitch);
+  fprintf (stderr, "    Texture alignment:                             %u bytes\n", p.textureAlignment);
+  fprintf (stderr, "    Clock rate:                                    %.2f GHz\n", p.clockRate * 1e-6f);
+#if CUDART_VERSION >= 2000
+  fprintf (stderr, "    Concurrent copy and execution:                 %s\n", p.deviceOverlap ? "Yes" : "No");
+#endif
+}
+
+void
+gpu_select (size_t dev_id)
+{
+  fprintf (stderr, "==> Selecting GPU device: %lu\n", (unsigned long)dev_id);
+  CUDA_SAFE_CALL (cudaSetDevice ((int)dev_id)); CE(stdout);
+  gpu_dumpinfo (dev_id);
+}
 
 //extern "C"
 //void dense_inter_gpu(point3d_t*);
@@ -295,13 +351,10 @@ void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *num
 //extern "C"
 //{
 void dense_inter_gpu(point3d_t *P) {
-#ifdef CERR
-	cudaError_t C_E;
-#endif
 	//Initialize device
 //	int devID;
 //	devID = cutGetMaxGflopsDeviceId();
-	cudaSetDevice( /*devID*/ 0 ); CE(C_E)	//done: Fix this for multiple devices.. maxgflops
+//	cudaSetDevice( /*devID*/ 0 ); CE(stdout)	//done: Fix this for multiple devices.. maxgflops
 //	unsigned int timer;
 //	float ms;
 //	cutCreateTimer(&timer);
@@ -327,9 +380,9 @@ void dense_inter_gpu(point3d_t *P) {
 //	 cutResetTimer(timer);
 //	CUT_SAFE_CALL(cutStartTimer(timer));
 #ifdef DS_ORG
-	cudaMalloc((void**)&s_dp,P->numSrc*sizeof(float)*4);	//float4
+	cudaMalloc((void**)&s_dp,P->numSrc*sizeof(float)*4); CE(stdout)	//float4
 
-	cudaMalloc((void**)&t_dp,P->numTrg*sizeof(float)*3);	//float3
+        cudaMalloc((void**)&t_dp,P->numTrg*sizeof(float)*3); CE(stdout)	//float3
 #else
 	cudaMalloc((void**)&sx_dp,P->numSrc*sizeof(float));
 	cudaMalloc((void**)&sy_dp,P->numSrc*sizeof(float));
@@ -357,35 +410,35 @@ void dense_inter_gpu(point3d_t *P) {
 
 	//Put data into the device
 #ifdef DS_ORG
-	cudaMemcpy(s_dp,P->src_,P->numSrc*sizeof(float)*4,cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(s_dp,P->src_,P->numSrc*sizeof(float)*4,cudaMemcpyHostToDevice); CE(stdout)
 
-	cudaMemcpy(t_dp,P->trg_,P->numTrg*sizeof(float)*3,cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(t_dp,P->trg_,P->numTrg*sizeof(float)*3,cudaMemcpyHostToDevice); CE(stdout)
 #else
-	cudaMemcpy(sx_dp,P->sx_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy(sy_dp,P->sy_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy(sz_dp,P->sz_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(sx_dp,P->sx_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+	cudaMemcpy(sy_dp,P->sy_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+	cudaMemcpy(sz_dp,P->sz_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
 
-	cudaMemcpy(tx_dp,P->tx_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy(ty_dp,P->ty_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy(tz_dp,P->tz_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(tx_dp,P->tx_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+	cudaMemcpy(ty_dp,P->ty_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+	cudaMemcpy(tz_dp,P->tz_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
 
-	cudaMemcpy(srcDen_dp,P->srcDen,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(srcDen_dp,P->srcDen,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
 #endif
 
-	cudaMemcpy(tbdsf_dp,tbdsf,2*sizeof(int)*P->numTrgBox,cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(tbdsf_dp,tbdsf,2*sizeof(int)*P->numTrgBox,cudaMemcpyHostToDevice); CE(stdout)
 
-	cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(stdout)
 
 
-	cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
 
-	cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
 
 
 	//kernel call
 	int GRID_WIDTH=(int)ceil((float)numAugTrg/65536.0F);
 	int GRID_HEIGHT=(int)ceil((float)numAugTrg/(float)GRID_WIDTH);
-	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
+//	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
 //	cout<<"Number of gpu blocks: "<<numAugTrg<<endl;
 	dim3 BlockDim(BLOCK_HEIGHT,BLOCK_WIDTH);	//Block width will be 1
 	dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);		//Grid width should be 1
@@ -395,12 +448,12 @@ void dense_inter_gpu(point3d_t *P) {
 //	}
 //	cout<<"Kernel call: ";
 #ifdef DS_ORG
-	ulist_kernel<<<GRID_HEIGHT,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(C_E)
+	ulist_kernel<<<GRID_HEIGHT,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
 #else
-	ulist_kernel<<<GRID_HEIGHT,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(C_E)
+	ulist_kernel<<<GRID_HEIGHT,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout)
 #endif
 
-	cudaMemcpy(P->trgVal,trgVal_dp,sizeof(float)*P->numTrg,cudaMemcpyDeviceToHost); CE(C_E)
+        cudaMemcpy(P->trgVal,trgVal_dp,sizeof(float)*P->numTrg,cudaMemcpyDeviceToHost); CE(stdout);
 //	CUT_SAFE_CALL(cutStopTimer(timer));
 //	 ms = cutGetTimerValue(timer);
 //	 cout<<ms<<"ms"<<endl;
