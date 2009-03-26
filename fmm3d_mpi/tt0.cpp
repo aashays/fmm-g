@@ -102,7 +102,8 @@ int main(int argc, char** argv)
     for (size_t dev_id = 0; dev_id < num_gpus; ++dev_id)
       gpu_dumpinfo (dev_id);
 
-    int mpirank = MPI_Comm_rank (PETSC_COMM_WORLD, &mpirank);
+    int mpirank;
+    MPI_Comm_rank (PETSC_COMM_WORLD, &mpirank);
     assert (num_gpus);
     cout << "==> For process p" << mpirank << ", selecting GPU #" << mpirank % num_gpus << endl;
     gpu_select (mpirank % num_gpus);
