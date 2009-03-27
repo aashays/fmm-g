@@ -2,15 +2,15 @@
 #include <cstdio>
 #include <cmath>
 #include <cutil.h>
- 
+
 #include "../p3d/point3d.h"
 #include "gpu_setup.h"
- 
+
 #define PI_4I 0.079577471F
 //#define PI_4I 1.0F
- 
+
 #define CERR
- 
+
 #if defined (CERR)
 # define CE(fp) \
    { \
@@ -21,7 +21,7 @@
 #else
 # define CE(fp)
 #endif
- 
+
 size_t
 gpu_count (void)
 {
@@ -35,7 +35,7 @@ gpu_count (void)
   }
   return 0; /* no devices found */
 }
- 
+
 void
 gpu_dumpinfo (size_t dev_id)
 {
@@ -66,7 +66,7 @@ gpu_dumpinfo (size_t dev_id)
   fprintf (stderr, " Concurrent copy and execution: %s\n", p.deviceOverlap ? "Yes" : "No");
 #endif
 }
- 
+
 void
 gpu_select (size_t dev_id)
 {
@@ -74,7 +74,7 @@ gpu_select (size_t dev_id)
   CUDA_SAFE_CALL (cudaSetDevice ((int)dev_id)); CE(stdout);
   gpu_dumpinfo (dev_id);
 }
- 
+
 //extern "C"
 //void dense_inter_gpu(point3d_t*);
 /*
@@ -89,12 +89,12 @@ gpu_select (size_t dev_id)
 *    trgBoxSize
 *    tp
 */
- 
- 
+
+
 #define BLOCK_HEIGHT 32
 #define BLOCK_WIDTH 1
 //#define GRID_WIDTH 1
- 
+
 using namespace std;
 ////////////////////////////////////////BEGIN KERNEL///////////////////////////////////////////////
 #ifdef DS_ORG
@@ -108,7 +108,7 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
           int *tbdsr_dp,int *tbdsf_dp,int *cs_dp,int *cp_dp,
           int numAugTrg) {
 #endif
- 
+
 #ifdef DS_ORG
   __shared__ float4 s_sh[BLOCK_HEIGHT];
   float3 t_reg;
@@ -119,23 +119,23 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
   __shared__ float sd_sh[BLOCK_HEIGHT];
   float tx_reg,ty_reg,tz_reg;
 #endif
- 
- 
+
+
 //  __shared__ int cs_sh[];  //TODO: dynamic alloc
 //  __shared__ int cp_sh[];
- 
- 
+
+
   int uniqueBlockId=blockIdx.y * gridDim.x + blockIdx.x;
   if(uniqueBlockId<numAugTrg) {
- 
- 
+
+
     float tv_reg=0.0F;
- 
+
     int boxId=tbdsr_dp[uniqueBlockId*3]*2;
- 
+
     int trgLimit=tbdsr_dp[uniqueBlockId*3+1];
     int trgIdx=tbdsr_dp[uniqueBlockId*3+2]+threadIdx.x;  //can simplify by adding boxid to tbds base to make new pointer
- 
+
   #ifdef DS_ORG
       t_reg=((float3*)t_dp)[trgIdx];
   #else
@@ -143,44 +143,44 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
       ty_reg=ty_dp[trgIdx];
       tz_reg=tz_dp[trgIdx];
   #endif
- 
+
   //  }
- 
+
       float dX_reg;
       float dY_reg;
       float dZ_reg;
- 
- 
- 
+
+
+
     int offset_reg=tbdsf_dp[boxId];
     int numSrc_reg=tbdsf_dp[boxId+1];
     int cs_idx_reg=0;
- 
+
     int *cp_sh=cp_dp+offset_reg;    //TODO: fix this
     int *cs_sh=cs_dp+offset_reg;
     int loc_reg=cp_sh[0]+threadIdx.x;
     int num_thread_reg=threadIdx.x;
     int lastsum=cs_sh[0];
- 
+
     //fetching cs and cp into shared mem
   //    for(int i=0;i<ceilf((float)numSrcBox_reg/(float)BLOCK_HEIGHT);i++)
   //      if(threadIdx.x<numSrcBox_reg-i*BLOCK_HEIGHT) {
   //        cs_sh[i*BLOCK_HEIGHT+threadIdx.x]=cs_dp[offset_reg+i*BLOCK_HEIGHT+threadIdx.x];
   //        cp_sh[i*BLOCK_HEIGHT+threadIdx.x]=cp_dp[offset_reg+i*BLOCK_HEIGHT+threadIdx.x];
   //      }
- 
- 
+
+
     int num_chunk_loop=numSrc_reg/BLOCK_HEIGHT;
- 
+
     for(int chunk=0;chunk<num_chunk_loop;chunk++) {
- 
- 
+
+
       if(num_thread_reg>=lastsum) {
         while(num_thread_reg>=cs_sh[cs_idx_reg]) cs_idx_reg++;
         loc_reg=cp_sh[cs_idx_reg]+(num_thread_reg-cs_sh[cs_idx_reg-1]);
         lastsum=cs_sh[cs_idx_reg];
       }
- 
+
       __syncthreads();
   #ifdef DS_ORG
       s_sh[threadIdx.x]=((float4*)s_dp)[loc_reg];
@@ -190,10 +190,10 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
       sz_sh[threadIdx.x]=sz_dp[loc_reg];
       sd_sh[threadIdx.x]=srcDen_dp[loc_reg];
   #endif
- 
+
       loc_reg+=BLOCK_HEIGHT;
       num_thread_reg+=BLOCK_HEIGHT;
- 
+
       __syncthreads();
 #pragma unroll 32
       for(int src=0;src<BLOCK_HEIGHT;src++) {
@@ -201,30 +201,38 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
         dX_reg=s_sh[src].x-t_reg.x;
         dY_reg=s_sh[src].y-t_reg.y;
         dZ_reg=s_sh[src].z-t_reg.z;
- 
+
         dX_reg*=dX_reg;
         dY_reg*=dY_reg;
         dZ_reg*=dZ_reg;
- 
+
         dX_reg += dY_reg+dZ_reg;
- 
+
         dX_reg = rsqrtf(dX_reg);
+
+        dX_reg = dX_reg + (dX_reg-dX_reg);
+        dX_reg = fmaxf(dX_reg,0.0F);
+
         tv_reg+=dX_reg*s_sh[src].w;
   #else
         dX_reg=sx_sh[src]-tx_reg;
         dY_reg=sy_sh[src]-ty_reg;
         dZ_reg=sz_sh[src]-tz_reg;
- 
+
         dX_reg*=dX_reg;
         dY_reg*=dY_reg;
         dZ_reg*=dZ_reg;
- 
+
         dX_reg += dY_reg+dZ_reg;
- 
+
         dX_reg = rsqrtf(dX_reg);
+
+        dX_reg = dX_reg + (dX_reg-dX_reg);
+        dX_reg = fmaxf(dX_reg,0.0F);
+
         tv_reg+=dX_reg*sd_sh[src] ;
   #endif
- 
+
         }
     }
     if(num_thread_reg<numSrc_reg) {
@@ -243,69 +251,73 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
       sz_sh[threadIdx.x]=sz_dp[loc_reg];
       sd_sh[threadIdx.x]=srcDen_dp[loc_reg];
   #endif
- 
+
     __syncthreads();
- 
+
     for(int src=0;src<numSrc_reg%BLOCK_HEIGHT;src++) {
   #ifdef DS_ORG
       dX_reg=s_sh[src].x-t_reg.x;
       dY_reg=s_sh[src].y-t_reg.y;
       dZ_reg=s_sh[src].z-t_reg.z;
- 
+
       dX_reg*=dX_reg;
       dY_reg*=dY_reg;
       dZ_reg*=dZ_reg;
- 
+
       dX_reg += dY_reg+dZ_reg;
- 
+
       dX_reg = rsqrtf(dX_reg);
       tv_reg+=dX_reg*s_sh[src].w;
   #else
       dX_reg=sx_sh[src]-tx_reg;
       dY_reg=sy_sh[src]-ty_reg;
       dZ_reg=sz_sh[src]-tz_reg;
- 
+
       dX_reg*=dX_reg;
       dY_reg*=dY_reg;
       dZ_reg*=dZ_reg;
- 
+
       dX_reg += dY_reg+dZ_reg;
- 
+
       dX_reg = rsqrtf(dX_reg);
+
+      dX_reg = dX_reg + (dX_reg-dX_reg);
+      dX_reg = fmaxf(dX_reg,0.0F);
+
       tv_reg+=dX_reg*sd_sh[src] ;
   #endif
- 
+
     }
- 
- 
+
+
     if(threadIdx.x<trgLimit) {
       trgVal_dp[trgIdx]=tv_reg*PI_4I;    //div by pi here not inside loop
     }
- 
+
   }    //extra invalid padding block
- 
- 
+
+
 }
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *numAugTrg,int *numSrcBoxTot) {
   for(int i=0;i<P->numTrgBox;i++) {
     *numAugTrg+=(P->trgBoxSize[i]/BLOCK_HEIGHT+((P->trgBoxSize[i]%BLOCK_HEIGHT)?1:0));
     *numSrcBoxTot+=P->uListLen[i];
- 
+
   }
   int srcidx[P->numSrcBox];
   int srcsum=0;
@@ -315,16 +327,16 @@ void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *num
   }
 //  cout<<"Split "<<P->numTrgBox<<" targets boxes into "<<*numAugTrg<<endl;
 //  cout<<"Total source boxes: "<<*numSrcBoxTot<<endl;
- 
+
   *tbdsf=(int*)malloc(sizeof(int)*2*P->numTrgBox);
   *tbdsr=(int*)malloc(sizeof(int)*3**numAugTrg);
   *cs=(int*)malloc(sizeof(int)**numSrcBoxTot);
   *cp=(int*)malloc(sizeof(int)**numSrcBoxTot);
- 
+
   int cc=0;
   int tt=0;
   int tbi=0;
- 
+
   for(int i=0;i<P->numTrgBox;i++) {
     (*tbdsf)[i*2]=cc;
     int cumulSum=0;
@@ -347,7 +359,7 @@ void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *num
     }
   }
 }
- 
+
 //extern "C"
 //{
 void dense_inter_gpu(point3d_t *P) {
@@ -373,7 +385,7 @@ void dense_inter_gpu(point3d_t *P) {
 //  CUT_SAFE_CALL(cutStopTimer(timer));
 //   ms = cutGetTimerValue(timer);
 //   cout<<"Preparing data structures: "<<ms<<"ms"<<endl;
- 
+
 //  for(int i=0;i<numSrcBoxTot;i++) {
 //    cout<<cs[i]<<" ";
 //  }
@@ -381,60 +393,60 @@ void dense_inter_gpu(point3d_t *P) {
 //  CUT_SAFE_CALL(cutStartTimer(timer));
 #ifdef DS_ORG
   cudaMalloc((void**)&s_dp,P->numSrc*sizeof(float)*4); CE(stdout)  //float4
- 
+
         cudaMalloc((void**)&t_dp,P->numTrg*sizeof(float)*3); CE(stdout)  //float3
 #else
   cudaMalloc((void**)&sx_dp,P->numSrc*sizeof(float));
   cudaMalloc((void**)&sy_dp,P->numSrc*sizeof(float));
   cudaMalloc((void**)&sz_dp,P->numSrc*sizeof(float));
- 
+
   cudaMalloc((void**)&tx_dp,P->numTrg*sizeof(float));
   cudaMalloc((void**)&ty_dp,P->numTrg*sizeof(float));
   cudaMalloc((void**)&tz_dp,P->numTrg*sizeof(float));
- 
+
   cudaMalloc((void**)&srcDen_dp,P->numSrc*sizeof(float));
 #endif
- 
- 
- 
+
+
+
   cudaMalloc((void**)&trgVal_dp,P->numTrg*sizeof(float));
- 
+
   cudaMalloc((void**)&tbdsf_dp,P->numTrgBox*2*sizeof(int));
- 
+
   cudaMalloc((void**)&tbdsr_dp,3*numAugTrg*sizeof(int));
- 
+
   cudaMalloc((void**)&cs_dp,numSrcBoxTot*sizeof(int));
- 
+
   cudaMalloc((void**)&cp_dp,numSrcBoxTot*sizeof(int));
- 
- 
+
+
   //Put data into the device
 #ifdef DS_ORG
   cudaMemcpy(s_dp,P->src_,P->numSrc*sizeof(float)*4,cudaMemcpyHostToDevice); CE(stdout)
- 
+
   cudaMemcpy(t_dp,P->trg_,P->numTrg*sizeof(float)*3,cudaMemcpyHostToDevice); CE(stdout)
 #else
   cudaMemcpy(sx_dp,P->sx_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
   cudaMemcpy(sy_dp,P->sy_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
   cudaMemcpy(sz_dp,P->sz_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
- 
+
   cudaMemcpy(tx_dp,P->tx_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
   cudaMemcpy(ty_dp,P->ty_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
   cudaMemcpy(tz_dp,P->tz_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
- 
+
   cudaMemcpy(srcDen_dp,P->srcDen,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
 #endif
- 
+
   cudaMemcpy(tbdsf_dp,tbdsf,2*sizeof(int)*P->numTrgBox,cudaMemcpyHostToDevice); CE(stdout)
- 
+
   cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(stdout)
- 
- 
+
+
   cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
- 
+
   cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
- 
- 
+
+
   //kernel call
   int GRID_WIDTH=(int)ceil((float)numAugTrg/65535.0F);
   int GRID_HEIGHT=(int)ceil((float)numAugTrg/(float)GRID_WIDTH);
@@ -442,7 +454,7 @@ void dense_inter_gpu(point3d_t *P) {
 //  cout<<"Number of gpu blocks: "<<numAugTrg<<endl;
   dim3 BlockDim(BLOCK_HEIGHT,BLOCK_WIDTH);  //Block width will be 1
   dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);    //Grid width should be 1
- 
+
 //  for(int i=0;i<P->numTrg;i++) {
 //    P->trgVal[i]=0.0F;
 //  }
@@ -452,12 +464,12 @@ void dense_inter_gpu(point3d_t *P) {
 #else
   ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout)
 #endif
- 
+
         cudaMemcpy(P->trgVal,trgVal_dp,sizeof(float)*P->numTrg,cudaMemcpyDeviceToHost); CE(stdout);
 //  CUT_SAFE_CALL(cutStopTimer(timer));
 //   ms = cutGetTimerValue(timer);
 //   cout<<ms<<"ms"<<endl;
- 
+
 //  for(int i=0;i<100;i++) {
 //    cout<<tbdsf[i*3+2]<<" ";
 //  }
@@ -468,20 +480,20 @@ void dense_inter_gpu(point3d_t *P) {
   cudaFree(sx_dp);
   cudaFree(sy_dp);
   cudaFree(sz_dp);
- 
+
   cudaFree(tx_dp);
   cudaFree(ty_dp);
   cudaFree(tz_dp);
- 
+
   cudaFree(srcDen_dp);
 #endif
- 
+
   cudaFree(trgVal_dp);
   cudaFree(tbdsf_dp);
   cudaFree(tbdsr_dp);
   cudaFree(cs_dp);
   cudaFree(cp_dp);
- 
+
   free(cs);
   free(cp);
   free(tbdsf);
