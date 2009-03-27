@@ -1,6 +1,5 @@
 # ----------------------------machine dependent file
-#DENDRO = ${HOME}/local/lincoln/dendro/1.0--gcc
-DENDRO = ${HOME}/local/lincoln/dendro/1.0--icc
+DENDRO = /u/ac/rvuduc/local/lincoln/dendro/1.0--icc
 DENDRO_CPPFLAGS = \
   -I${DENDRO}/include/oct \
   -I${DENDRO}/include/point \
@@ -13,13 +12,9 @@ CUDA_DIR = /usr/local/cuda
 CUDA_SDK_DIR = /u/ac/rvuduc/local/lincoln/NVIDIA_CUDA_SDK
 
 PETSC_DIR = /u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--icc
-#PETSC_DIR = /u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--gcc
 
 FFTW_CPPFLAGS = -I/usr/local/intel/mkl/10.0.3.020/include/fftw
 FFTW_LDFLAGS = -L/usr/local/intel/mkl/10.0.3.020/lib -lfftw3xc_intel
-#FFTW_DIR = $(HOME)/local/lincoln/fftw/3.2.1--gcc4.2.1
-#FFTW_CPPFLAGS = -I$(FFTW_DIR)/include
-#FFTW_LDFLAGS = -L$(FFTW_DIR)/lib -lfftw3
 
 CFLAGS = -DPETSC_USE_LOG -DDEBUG_LET -O3 -g -Wall # -DUSE_ALLTOALLV_FIX -DUSE_ALLGATHER_FIX # -DNDEBUG -D_GLIBCXX_DEBUG 
 FFLAGS =

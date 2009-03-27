@@ -16,8 +16,12 @@ mpirun -np N tt0 -options_file options_fmm
 
 Add the flag, '-gpu_ulist', to the options file, and run as above.
 
+For an example, see: fmm3d_mpi/options_gpu_example
 
 === NOTES ON RUNNING ON LINCOLN ===
+
+For documentation on Lincoln, see:
+  http://www.ncsa.uiuc.edu/UserInfo/Resources/Hardware/Intel64TeslaCluster
 
 Recommended additions to your ~/.soft file:
 
@@ -31,3 +35,9 @@ In addition, there are world-readable builds of PETSc and Dendro in Rich Vuduc's
   PETSC_DIR=/u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--icc
   PETSC_ARCH=linux-gnu-cxx-opt
   DENDRO_DIR=/u/ac/rvuduc/local/lincoln/dendro/1.0--icc
+
+For a sample PBS batch job script for the 'options_gpu_example' input, see:
+
+  fmm3d_mpi/run--options_gpu_example.pbs
+
+# eof

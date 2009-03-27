@@ -1,0 +1,64 @@
+#!/usr/local/bin/bash
+#  Sample Batch Script for a MVAPICH-Intel job
+#
+# BEFORE YOU SUBMIT THIS SCRIPT:
+#
+# $HOME/.mpd.conf contains:
+#
+#  MPD_SECRETWORD=XXXXXXX     # random alphanumeric chars
+#                             # (MUST contain at least one alphabetic char)
+#
+# (make sure the file .mpd.conf has permissions 700)
+#
+#  Submit this script using the command: qsub <script_name>
+#
+#  Use the "qstat" command to check the status of a job.
+#
+# The following are embedded QSUB options. The syntax is #PBS (the # does
+# _not_  denote that the lines are commented out so do not remove).
+#
+# walltime : maximum wall clock time (hh:mm:ss)
+#PBS -l walltime=00:05:00
+#
+# nodes: number of 8-core nodes
+#   ppn: how many cores per node to use (1 through 8)
+#       (you are always charged for the entire node)
+#PBS -l nodes=2:ppn=2
+#
+# export all my environment variables to the job
+#PBS -V
+#
+# job name (default = name of script file)
+#PBS -N fmm3d--options_gpu_example
+#
+# Request Tesla cluster queue
+#PBS -q lincoln
+#
+# filename for standard output (default = <job_name>.o<job_id>)
+# at end of job, it is in directory from which qsub was executed
+# remove extra ## from the line below if you want to name your own file
+###PBS -o options_ilya_gpu.out
+#
+# filename for standard error (default = <job_name>.e<job_id>)
+# at end of job, it is in directory from which qsub was executed
+# remove extra ## from the line below if you want to name your own file
+###PBS -e options_ilya_gpu.err
+#
+# End of embedded QSUB options
+
+cd ${HOME}/projects/fmm/kifmm3d-gpu/fmm-g.git/fmm3d_mpi
+NP=`wc -l ${PBS_NODEFILE} | cut -d'/' -f1`
+MV2_SRQ_SIZE=4000
+
+# mpirun -np ${NP} ./mpihello
+#   This mpirun syntax above will assign ranks to nodes in round-robin fashion.
+#
+# mpirun  -machinefile ${PBS_NODEFILE} -np ${NP} ./mpihello
+#   To get ranks *packed* into nodes, use this syntax.
+
+echo "Starting in: `pwd`"
+mvapich2-start-mpd
+mpirun -machinefile ${PBS_NODEFILE} -np ${NP} ./tt0 -options_file options_ilya_gpu
+mpdallexit
+
+# eof
