@@ -1,5 +1,8 @@
+#include <mpi.h>
+
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <cmath>
 #include <cutil.h>
 
@@ -11,13 +14,30 @@
 
 #define CERR
 
+#if 0
+#if defined (__cplusplus)
+extern "C" int MPI_Comm_rank (int, int*);
+#define MPI_COMM_WORLD 0x44000000
+#endif
+#endif
+
 #if defined (CERR)
-# define CE(fp) \
-   { \
-     cudaError_t C_E = cudaGetLastError (); \
-     if (C_E) \
-       fprintf ((fp), "*** [%s:%lu] CUDA ERROR: %s ***\n", __FILE__, __LINE__, cudaGetErrorString (C_E)); \
-   }
+static
+void
+CE (FILE* fp)
+{
+  cudaError_t C_E = cudaGetLastError ();
+  if (C_E) {
+    int rank;
+    char procname[MPI_MAX_PROCESSOR_NAME+1];
+    int procnamelen;
+    memset (procname, 0, sizeof (procname));
+    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+    MPI_Get_processor_name (procname, &procnamelen);
+    fprintf ((fp), "*** [%s:%lu::p%d(%s)] CUDA ERROR: %s ***\n", __FILE__, __LINE__, rank, procname, cudaGetErrorString (C_E));
+    fflush (fp);
+  }
+}
 #else
 # define CE(fp)
 #endif
@@ -392,9 +412,9 @@ void dense_inter_gpu(point3d_t *P) {
 //   cutResetTimer(timer);
 //  CUT_SAFE_CALL(cutStartTimer(timer));
 #ifdef DS_ORG
-  cudaMalloc((void**)&s_dp,P->numSrc*sizeof(float)*4); CE(stdout)  //float4
+  cudaMalloc((void**)&s_dp,P->numSrc*sizeof(float)*4); CE(stdout);  //float4
 
-        cudaMalloc((void**)&t_dp,P->numTrg*sizeof(float)*3); CE(stdout)  //float3
+  cudaMalloc((void**)&t_dp,P->numTrg*sizeof(float)*3); CE(stdout);  //float3
 #else
   cudaMalloc((void**)&sx_dp,P->numSrc*sizeof(float));
   cudaMalloc((void**)&sy_dp,P->numSrc*sizeof(float));
@@ -409,42 +429,42 @@ void dense_inter_gpu(point3d_t *P) {
 
 
 
-  cudaMalloc((void**)&trgVal_dp,P->numTrg*sizeof(float));
+  cudaMalloc((void**)&trgVal_dp,P->numTrg*sizeof(float)); CE(stdout);
 
-  cudaMalloc((void**)&tbdsf_dp,P->numTrgBox*2*sizeof(int));
+  cudaMalloc((void**)&tbdsf_dp,P->numTrgBox*2*sizeof(int)); CE(stdout);
 
-  cudaMalloc((void**)&tbdsr_dp,3*numAugTrg*sizeof(int));
+  cudaMalloc((void**)&tbdsr_dp,3*numAugTrg*sizeof(int)); CE(stdout);
 
-  cudaMalloc((void**)&cs_dp,numSrcBoxTot*sizeof(int));
+  cudaMalloc((void**)&cs_dp,numSrcBoxTot*sizeof(int)); CE(stdout);
 
-  cudaMalloc((void**)&cp_dp,numSrcBoxTot*sizeof(int));
+  cudaMalloc((void**)&cp_dp,numSrcBoxTot*sizeof(int)); CE(stdout);
 
 
   //Put data into the device
 #ifdef DS_ORG
-  cudaMemcpy(s_dp,P->src_,P->numSrc*sizeof(float)*4,cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(s_dp,P->src_,P->numSrc*sizeof(float)*4,cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(t_dp,P->trg_,P->numTrg*sizeof(float)*3,cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(t_dp,P->trg_,P->numTrg*sizeof(float)*3,cudaMemcpyHostToDevice); CE(stdout);
 #else
-  cudaMemcpy(sx_dp,P->sx_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
-  cudaMemcpy(sy_dp,P->sy_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
-  cudaMemcpy(sz_dp,P->sz_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(sx_dp,P->sx_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(sy_dp,P->sy_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(sz_dp,P->sz_,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(tx_dp,P->tx_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
-  cudaMemcpy(ty_dp,P->ty_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
-  cudaMemcpy(tz_dp,P->tz_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(tx_dp,P->tx_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(ty_dp,P->ty_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(tz_dp,P->tz_,P->numTrg*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(srcDen_dp,P->srcDen,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(srcDen_dp,P->srcDen,P->numSrc*sizeof(float),cudaMemcpyHostToDevice); CE(stdout);
 #endif
 
-  cudaMemcpy(tbdsf_dp,tbdsf,2*sizeof(int)*P->numTrgBox,cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(tbdsf_dp,tbdsf,2*sizeof(int)*P->numTrgBox,cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(stdout);
 
 
-  cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout)
+  cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
 
 
   //kernel call
@@ -462,7 +482,7 @@ void dense_inter_gpu(point3d_t *P) {
 #ifdef DS_ORG
   ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
 #else
-  ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout)
+  ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
 #endif
 
         cudaMemcpy(P->trgVal,trgVal_dp,sizeof(float)*P->numTrg,cudaMemcpyDeviceToHost); CE(stdout);

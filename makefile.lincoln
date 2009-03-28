@@ -11,6 +11,8 @@ DENDRO_CPPFLAGS = \
 CUDA_DIR = /usr/local/cuda
 CUDA_SDK_DIR = /u/ac/rvuduc/local/lincoln/NVIDIA_CUDA_SDK
 
+MPI_DIR = /usr/local/mvapich2-1.2-intel-ofed-1.2.5.5
+
 PETSC_DIR = /u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--icc
 
 FFTW_CPPFLAGS = -I/usr/local/intel/mkl/10.0.3.020/include/fftw
@@ -27,7 +29,7 @@ AR = ar
 ARFLAGS = -r
 RANLIB = ranlib
 
-NVCC = nvcc -I.. -I$(CUDA_DIR) -I$(CUDA_SDK_DIR)/common/inc -g
+NVCC = nvcc -I.. -I$(CUDA_DIR) -I$(CUDA_SDK_DIR)/common/inc -I$(MPI_DIR)/include -g
 NVFLAGS = -DDS_ORG
 
 include ${PETSC_DIR}/bmake/common/base
