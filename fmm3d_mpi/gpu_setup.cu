@@ -24,7 +24,7 @@ extern "C" int MPI_Comm_rank (int, int*);
 #if defined (CERR)
 static
 void
-CE (FILE* fp)
+CE__ (FILE* fp, const char* filename, size_t line)
 {
   cudaError_t C_E = cudaGetLastError ();
   if (C_E) {
@@ -34,10 +34,11 @@ CE (FILE* fp)
     memset (procname, 0, sizeof (procname));
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
     MPI_Get_processor_name (procname, &procnamelen);
-    fprintf ((fp), "*** [%s:%lu::p%d(%s)] CUDA ERROR: %s ***\n", __FILE__, __LINE__, rank, procname, cudaGetErrorString (C_E));
+    fprintf ((fp), "*** [%s:%lu::p%d(%s)] CUDA ERROR: %s ***\n", filename, line, rank, procname, cudaGetErrorString (C_E));
     fflush (fp);
   }
 }
+#  define CE(fp)  CE__ ((fp), __FILE__, __LINE__)
 #else
 # define CE(fp)
 #endif
@@ -390,6 +391,13 @@ void dense_inter_gpu(point3d_t *P) {
 //  unsigned int timer;
 //  float ms;
 //  cutCreateTimer(&timer);
+
+  int mpirank;
+  MPI_Comm_rank (MPI_COMM_WORLD, &mpirank);
+  int gpu_id = mpirank % gpu_count ();
+  fprintf (stderr, "@@ p%d --> g.%d [%d]\n", mpirank, gpu_id, gpu_count ());
+  gpu_select (gpu_id);
+
 #ifdef DS_ORG
   float *s_dp,*t_dp;
 #else
@@ -462,9 +470,13 @@ void dense_inter_gpu(point3d_t *P) {
   cudaMemcpy(tbdsr_dp,tbdsr,3*sizeof(int)*numAugTrg,cudaMemcpyHostToDevice); CE(stdout);
 
 
-  cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
+if (!cs_dp) { fprintf (stdout, "@@ [%s:%lu::p%d] cs_dp == NULL [numSrcBoxTot = %lu*%lu bytes]\n", __FILE__, (unsigned long)__LINE__, mpirank, (unsigned long)numSrcBoxTot, (unsigned long)sizeof (int)); }
+//  cudaMemcpy(cs_dp,cs,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(cs_dp,cs,(numSrcBoxTot)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
 
-  cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
+if (!cp_dp) { fprintf (stdout, "@@ [%s:%lu::p%d] cp_dp == NULL [numSrcBoxTot = %lu*%lu bytes]\n", __FILE__, (unsigned long)__LINE__, mpirank, (unsigned long)numSrcBoxTot, (unsigned long)sizeof (int)); }
+//  cudaMemcpy(cp_dp,cp,(numSrcBoxTot+1)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
+  cudaMemcpy(cp_dp,cp,(numSrcBoxTot)*sizeof(int),cudaMemcpyHostToDevice); CE(stdout);
 
 
   //kernel call
@@ -474,13 +486,15 @@ void dense_inter_gpu(point3d_t *P) {
 //  cout<<"Number of gpu blocks: "<<numAugTrg<<endl;
   dim3 BlockDim(BLOCK_HEIGHT,BLOCK_WIDTH);  //Block width will be 1
   dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);    //Grid width should be 1
+fprintf (stdout, "@@ [%s:%lu::p%d] numAugTrg=%d; BlockDim x GridDim = [%d x %d] x [%d x %d]\n", __FILE__, (unsigned long)__LINE__, mpirank, numAugTrg, BLOCK_HEIGHT, BLOCK_WIDTH, GRID_HEIGHT, GRID_WIDTH);
 
 //  for(int i=0;i<P->numTrg;i++) {
 //    P->trgVal[i]=0.0F;
 //  }
 //  cout<<"Kernel call: ";
 #ifdef DS_ORG
-  ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
+  if (numAugTrg) // No need to call kernel if numAugTrg == 0
+    ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
 #else
   ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); CE(stdout);
 #endif

@@ -57,6 +57,8 @@ MV2_SRQ_SIZE=4000
 #   To get ranks *packed* into nodes, use this syntax.
 
 echo "Starting in: `pwd`"
+finger
+top -b -n 1
 mvapich2-start-mpd
 mpirun -machinefile ${PBS_NODEFILE} -np ${NP} ./tt0 -options_file @OPTS@
 mpdallexit
