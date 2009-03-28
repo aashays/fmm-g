@@ -60,5 +60,6 @@ echo "Starting in: `pwd`"
 mvapich2-start-mpd
 mpirun -machinefile ${PBS_NODEFILE} -np ${NP} ./tt0 -options_file @OPTS@
 mpdallexit
+exit
 
 # eof
