@@ -1,7 +1,6 @@
 #!/usr/local/bin/bash
 
 WALLTIME=${WALLTIME-0:05:00}
-RUNSCRIPT=${RUNSCRIPT-./run.pbs}
 
 OPTS=$1 ; shift
 NP=$1 ; shift
@@ -24,6 +23,8 @@ Set these environment variables to change defaults:
 "
   exit 1
 fi
+
+RUNSCRIPT=${RUNSCRIPT-${OUTTAG}.pbs}
 
 cat run.pbs.in \
   | sed "s,@WALLTIME@,${WALLTIME},g" \
