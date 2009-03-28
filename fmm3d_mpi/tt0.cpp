@@ -16,6 +16,7 @@ along with this program; see the file COPYING.  If not, write to the Free
 Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 #include <cassert>
+#include <cstring>
 #include "fmm3d_mpi.hpp"
 #include "manage_petsc_events.hpp"
 #include "sys/sys.h"
@@ -104,9 +105,17 @@ int main(int argc, char** argv)
 
     int mpirank;
     MPI_Comm_rank (PETSC_COMM_WORLD, &mpirank);
+
     assert (num_gpus);
-    cout << "==> For process p" << mpirank << ", selecting GPU #" << mpirank % num_gpus << endl;
-    gpu_select (mpirank % num_gpus);
+    int gpu_id = mpirank % num_gpus;
+
+    char procname[MPI_MAX_PROCESSOR_NAME+1];
+    int len;
+    memset (procname, 0, sizeof (procname));
+    MPI_Get_processor_name (procname, &len);
+
+    gpu_select (gpu_id);
+    cout << "==> p" << mpirank << "(" << procname << ") --> GPU #" << gpu_id << endl;
   }
 
   // make "Main Stage" invisible
