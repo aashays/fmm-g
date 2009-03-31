@@ -29,6 +29,236 @@ using std::cerr;
 using std::endl;
 
 // ---------------------------------------------------------------------- 
+
+#undef __FUNCT__
+#define __FUNCT__ "FMM3d_MPI::ExchangeOctantsTreeBased"
+int FMM3d_MPI::ExchangeOctantsTreeBased()
+{
+  // so far we only support size of communicator which is power of 2
+  pA( !(mpiSize() & (mpiSize()-1)) );
+  vector<Let3d_MPI::Node> & nodes = _let->nodeVec();
+
+  vector<ot::TreeNode> * l; // l contains ``current list of octants'' at each iteration;  initially l contains local shared octants; finally l contains all necessary octants from other processors
+  l = new vector<ot::TreeNode> ; 
+
+  // make a list of ``local shared octants'';  that is octants that this process owns and which (octants) have insulation layer intersecting with areas controlled by other processors
+  int q=0;  //  0 means root node;   
+  while(q!=-1) 
+  {
+    // if node q is not a leaf
+    // and the span of the insulation layer of this node is not entirely local
+    // then  push all <children of q THAT WE OWN> to all processors whos areas intersect with the 
+    // insulation layer
+    // and go to first child of q and repeat
+    if (!_let->terminal(q))
+    {
+      unsigned q_lev=_let->depth(q);
+      unsigned x,y,z;
+      x = (nodes[q].path2Node())(0) << _let->maxLevel()-q_lev;
+      y = (nodes[q].path2Node())(1) << _let->maxLevel()-q_lev;
+      z = (nodes[q].path2Node())(2) << _let->maxLevel()-q_lev;
+
+      ot::TreeNode oct (x,y,z,q_lev,3/*dim*/,_let->maxLevel());
+      ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
+
+      vector<ot::TreeNode> neighbs = oct.getAllNeighbours();
+      neighbs.push_back(oct); // we add octant itself to get complete insulation layer
+
+      // in the loop below we find min and max neighbs (min/max in morton sense)
+      // we also substitute non-existent neighbs (which are returned as root octants)
+      // with the octant itself ("oct")
+      ot::TreeNode min_neighb=oct;
+      ot::TreeNode max_neighb=oct;
+      for (size_t i=0; i<neighbs.size(); i++)
+      {
+	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
+	  neighbs[i]=oct;
+	else
+	{
+	  min_neighb=min(min_neighb,neighbs[i]);
+	  max_neighb=max(max_neighb,neighbs[i]);
+	}
+      }
+
+      // find the lower bound for processes that can intersect with the insulation layer
+      // that is, no processor less that first_cpu can intersect
+      // we use getDFD() since min_neighb may intersect domains of many processors
+      vector<ot::TreeNode>::const_iterator first_cpu = upper_bound(_let->procMins.begin(),_let->procMins.end(),min_neighb.getDFD());
+      first_cpu--; //we actually need the last element which is not greater than search key
+
+      // past_last_cpu is upper bound: any processor with rank>=past_last_cpu does not intersect with insul. layer 
+      // we use getDLD() since max_neighb may intersect domains of many processors
+      vector<ot::TreeNode>::const_iterator past_last_cpu = upper_bound(_let->procMins.begin(),_let->procMins.end(),max_neighb.getDLD());
+      // now past_last_cpu points to first element which is greater than search key (maybe procMins.end() )
+
+      if (past_last_cpu-first_cpu > 1)  // if insulation layer is not entirely local...
+      {
+	// if insulation layer of an octant lies inside the area owned by single process, and this octant encloses some sources that our process owns, then this "single process" is OUR process
+	// mark all children (which must exist, since node is non-terminal) THAT WE OWN
+	// as ``shared''
+	for (int chd_num=0; chd_num<8; chd_num++)
+	{
+	  int chd_index=nodes[q].chd()+chd_num;
+	  if (nodes[chd_index].tag() & LET_OWNRNODE)
+	  {
+	    unsigned lev=_let->depth(chd_index);
+	    unsigned x,y,z;
+	    x = (nodes[chd_index].path2Node())(0) << _let->maxLevel()-lev;
+	    y = (nodes[chd_index].path2Node())(1) << _let->maxLevel()-lev;
+	    z = (nodes[chd_index].path2Node())(2) << _let->maxLevel()-lev;
+
+	    ot::TreeNode oct (x,y,z,lev,3/*dim*/,_let->maxLevel());
+
+	    l->push_back(oct);
+
+	  }
+	}
+	// go to first child of q 
+	q=nodes[q].chd();
+	continue;  // (while loop)
+      }
+    } // end if (!terminal(q))
+
+    // otherwise (i.e. if q is a leaf, or does not enclose any sources, or its insulation 
+    // layer is  entirely local) go to "next" node 
+    // next node is next sibling (if we are not last sibling or root), or next sibling of a parent 
+    // (if parent is not last sibling itself) and so on; if we at the last node, just exit
+    do
+    {
+      int p=nodes[q].par();
+      if (p==-1)
+      {
+	// q is root octant, thus there are no more nodes to process
+	q=-1; // exit flag
+	break;
+      }
+      if (q - nodes[p].chd() < 7 )   // if q is not the last child ... (there are 8 children overall)
+      {
+	q++; // go to next sibling
+	break;
+      }
+      else
+	q=p; // go to parent and see what sibling parent is
+    }
+    while (true);
+
+  } // end while(q!=-1)
+
+  MPI_Datatype mpi_treenode;
+  MPI_Type_contiguous( sizeof(ot::TreeNode), MPI_BYTE, &mpi_treenode);
+  MPI_Type_commit(&mpi_treenode);
+
+  // communication loop:
+  for (int two_power=1; two_power<mpiSize(); two_power<<=1)
+  {
+    vector<ot::TreeNode>  & ll = *l;
+    int partner = mpiRank() ^ two_power;
+    int r1 = partner & (mpiSize()-two_power);
+    int r2 = partner | (two_power-1);
+
+    // build the list of octants to send to partner
+    vector<ot::TreeNode> to_send;
+    for(size_t q=0; q<ll.size(); q++)
+    {
+      ot::TreeNode & oct = ll[q];
+      ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
+
+      vector<ot::TreeNode> neighbs = oct.getAllNeighbours();
+      neighbs.push_back(oct); // we add octant itself to get complete insulation layer
+
+      // in the loop below we find min and max neighbs (min/max in morton sense)
+      // we also substitute non-existent neighbs (which are returned as root octants)
+      // with the octant itself ("oct")
+      ot::TreeNode min_neighb=oct;
+      ot::TreeNode max_neighb=oct;
+      for (size_t i=0; i<neighbs.size(); i++)
+      {
+	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
+	  neighbs[i]=oct;
+	else
+	{
+	  min_neighb=min(min_neighb,neighbs[i]);
+	  max_neighb=max(max_neighb,neighbs[i]);
+	}
+      }
+
+      // check if insulation layer intersects with the area controlled by processors r1 ... r2
+      if (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ))
+	to_send.push_back(oct);
+    }
+
+    // do send and receive
+    // now recvd  contains octants received from partner
+
+    // merge l and received octants; take only those octants from l, which are adressed to this process or still have to be sent somewhere; we assume both l and recvd  are Morton sorted (in ascending order)
+
+
+  }
+
+  MPI_Type_free(&mpi_treenode);
+
+
+  // now insert received octants in local tree
+  // some received octants may already be present in the tree, then just set the global indices
+  // for now, we'll do simplistic implementation:  for each  received octant we start from root and go down the tree to find an appropriate place
+#if 0
+  for (size_t i=0; i<recvdOctants.size(); i++)
+  {
+    int q= 0;  // we start from root octant
+    const struct octant_data & octData = recvdOctants[i];
+
+    while(true)
+    {
+#ifdef DEBUG_LET
+      assert(unsigned(nodes[q].depth()) <= octData.level);
+#endif
+      if (unsigned(nodes[q].depth()) == octData.level)
+      {
+	// at this point "nodes[q]" should be same octant as "octData"
+	// thus set global indices
+#ifdef DEBUG_LET
+	Index3 path = nodes[q].path2Node();
+	for(int j=0; j<3; j++)
+	  assert(unsigned(path[j])==octData.coord[j]);
+#endif
+	nodes[q].glbSrcNodeIdx() = octData.glbSrcNodeIdx;
+	nodes[q].glbSrcExaNum() = octData.glbSrcExaNum;
+	nodes[q].glbSrcExaBeg() = octData.glbSrcExaBeg;
+	nodes[q].tag() |= LET_SRCENODE;
+	break;
+      }
+      else // we must go deeper
+      {
+	// first, if nodes[q] is leaf, create children of nodes[q]
+	if (nodes[q].chd()==-1)
+	{
+	  nodes[q].chd()=nodes.size();
+	  for(int a=0; a<2; a++) 
+	    for(int b=0; b<2; b++)
+	      for(int c=0; c<2; c++) 
+	      {
+		/* Create a new node with parent at location "q"
+		 *  child initially set to -1 
+		 *  path set to 2*"nodes[q]'s path" + the binary index of the new node's location relative to nodes[q]
+		 *  depth is set to "k's" depth + 1
+		 */
+		nodes.push_back( Node(q,-1, 2*nodes[q].path2Node()+Index3(a,b,c), nodes[q].depth()+1) );
+	      }
+	}
+	
+	// now go to the appropriate child of nodes[q] (maybe just created by code above)
+	unsigned idx[3];
+	for(int j=0; j<3; j++)
+	  idx[j]=( octData.coord[j] >> (octData.level - nodes[q].depth() - 1) ) & 1; 
+	q = nodes[q].chd() + idx[0]*4+idx[1]*2+idx[2];
+      }
+    }
+  }
+#endif
+  delete l;
+  return 0;
+}
+
 #undef __FUNCT__
 #define __FUNCT__ "FMM3d_MPI::evaluate"
 int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
@@ -177,6 +407,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   
   // U-list computation
   PetscLogEventBegin(EvalUList_event,0,0,0,0);
+#ifdef COMPILE_GPU
   PetscTruth gpu_ulist;
   PetscOptionsHasName(0,"-gpu_ulist",&gpu_ulist);
   if (gpu_ulist)
@@ -297,6 +528,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     free (P);
   }
   else
+#endif
   {
 #ifdef HAVE_PAPI
     // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)

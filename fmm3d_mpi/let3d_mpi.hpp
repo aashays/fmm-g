@@ -223,8 +223,6 @@ protected:
   /*! vector of Nodes.  To return the ith Node, node(i) is called, returning _nodeVec[i] */
   vector<Node> _nodeVec;
 
-  // first octants from all "active" processes; initialized in srcData()
-  vector<ot::TreeNode> procMins;
   
   /*! global node count for global source vector - number of nodes (both leaves and non-leaves) WITH SOURCES in global tree; */
   PetscInt _glbGlbSrcNodeCnt;
@@ -290,6 +288,8 @@ public:
   /* targets are re-distributed during tree contruction, same as with sources. */
   vector<PetscInt> newTrgGlobalIndices;
   
+  // first octants from all "active" processes; initialized in srcData()
+  vector<ot::TreeNode> procMins;
   
   /*! Return center of tree */
   Point3& ctr() { return _ctr; }
