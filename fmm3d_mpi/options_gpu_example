@@ -1,3 +1,4 @@
+-gpu_s2m
 -gpu_ulist
 -repartition  uniformOct % weighted_leaves %blockPart %
 
@@ -7,10 +8,8 @@
 -preload_numsrc 100    %number of source points WHEN PRELOADING
 
 % -trgs_and_srcs_coinc
--numtrg 200000         %number of target points (where the potential
-needs to be evaluated)
--preload_numtrg 100  %number of target points (where the potential
-needs to be evaluated) WHEN PRELOADING
+-numtrg 200000         %number of target points (where the potential needs to be evaluated)
+-preload_numtrg 100  %number of target points (where the potential needs to be evaluated) WHEN PRELOADING
 -numchk 100
 % -preload_numchk 1
 
@@ -21,7 +20,7 @@ needs to be evaluated) WHEN PRELOADING
 -kt 111                    %laplace equation, single layer, evaluating potential
 
 -fmm3d_np 6
--fmm3d_let3d_ptsmax 4000
+-fmm3d_let3d_ptsmax 500
 -fmm3d_let3d_maxlevel 30
 
 -log_summary

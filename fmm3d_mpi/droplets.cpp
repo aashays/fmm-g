@@ -1,3 +1,4 @@
+#include <cstring>
 #include "fmm3d_mpi.hpp"
 #include "manage_petsc_events.hpp"
 #include "sys/sys.h"
@@ -7,7 +8,6 @@
 #endif
 
 #include "sstream"
-#include <cstring>
 
 using namespace std;
 

@@ -19,6 +19,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #include "common/vecmatop.hpp"
 #include "manage_petsc_events.hpp"
 #include "p3d/point3d.h"
+#include "p3d/upComp.h"
+#include "p3d/dnComp.h"
 #include "gpu_setup.h"
 
 #ifdef HAVE_PAPI
@@ -342,6 +344,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     PetscLogEventEnd(EvalGlb2UsrExaBeg_event,0,0,0,0);
   }
   
+  //3. up computation
   PetscLogEventBegin(EvalUpwComp_event,0,0,0,0);
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
@@ -349,17 +352,88 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if ((papi_retval = PAPI_flops(&papi_real_time, &papi_proc_time, &papi_flpops, &papi_mflops)) != PAPI_OK)
     SETERRQ1(1,"PAPI failed with errorcode %d",papi_retval);
 #endif
-  //3. up computation
+  upComp_t *UpC;
+  PetscTruth gpu_s2m;
+  PetscOptionsHasName(0,"-gpu_s2m",&gpu_s2m);
+  if (gpu_s2m)
+    // compute s2m for all leaves at once
+  {
+    /* Allocate memory for the upward computation structure for GPU */
+    if ( (UpC = (upComp_t*) calloc (1, sizeof (upComp_t))) == NULL ) {
+      fprintf (stderr, " Error allocating memory for upward computation structure\n");
+      return 1;
+    }		//why??
+    /* Copy data into the upward computation structure defined by 'UpC' */
+    UpC->tag = UC;
+    UpC->numSrc = procLclNum(_usrSrcExaPos);
+    UpC->dim = 3;
+    UpC->numSrcBox = ordVec.size();
+    // samPos = this->matmgnt()->samPos(UpC->tag);
+    const DblNumMat & sample_pos = _matmgnt->samPos(UpC->tag);
+    vector<float> sample_pos_float(sample_pos.n()*sample_pos.m());
+    for (size_t i=0; i<sample_pos_float.size(); i++)
+      sample_pos_float[i]=*(sample_pos._data+i);
+
+    UpC->src_ = (float *) malloc(sizeof(float) * UpC->numSrc * (UpC->dim+1));
+    UpC->trgVal = (float**) malloc (sizeof(float*) * ordVec.size());
+    UpC->srcBoxSize = (int *) calloc (ordVec.size(), sizeof(int));
+    UpC->trgCtr = (float *) calloc (UpC->numSrcBox * UpC->dim, sizeof(float));
+    UpC->trgRad = (float *) calloc (UpC->numSrcBox, sizeof(float));
+    UpC->trgDim=sample_pos.n();
+    UpC->samPosF=&sample_pos_float[0];
+
+    int srcIndex = 0;
+    for (size_t gNodeIdx=0; gNodeIdx<_let->nodeVec().size(); gNodeIdx++)
+    {
+      UpC->trgVal[gNodeIdx] = NULL;
+      if (_let->terminal(gNodeIdx)   &&   _let->node(gNodeIdx).tag() & LET_CBTRNODE)
+      {
+	for (int j = 0; j < UpC->dim; j++)
+	  UpC->trgCtr[j+gNodeIdx*UpC->dim] = _let->center(gNodeIdx)(j);
+
+	/* Radius of the box */
+	UpC->trgRad[gNodeIdx] = _let->radius(gNodeIdx);
+
+	/* Allocate memory for target potentials */
+	UpC->trgVal[gNodeIdx] = (float *) calloc(UpC->trgDim, sizeof(float));
+
+	/* Source points and density stored as x1 y1 z1 d1 x2 y2 z2 d2 ..... */
+	DblNumMat sources = ctbSrcExaPos(gNodeIdx);
+	DblNumVec densities = ctbSrcExaDen(gNodeIdx);
+	UpC->srcBoxSize[gNodeIdx] = sources.n();
+	for(int s = 0; s < UpC->srcBoxSize[gNodeIdx]; s++) {
+	  for(int d = 0; d < UpC->dim; d++)
+	    UpC->src_[(s*(UpC->dim+1))+d+srcIndex] = sources(d,s);
+	  UpC->src_[(s*(UpC->dim+1))+3+srcIndex] = densities(s);
+	}
+	srcIndex += (UpC->srcBoxSize[gNodeIdx] * (UpC->dim+1));
+      }
+    }
+
+    gpu_up(UpC);
+  }
+
   for(size_t i=0; i<ordVec.size(); i++) {
     int gNodeIdx = ordVec[i];
     if( _let->node(gNodeIdx).tag() & LET_CBTRNODE) {
       if(_let->depth(gNodeIdx)>=0) {
 	DblNumVec ctbSrcUpwChkValgNodeIdx(ctbSrcUpwChkVal(gNodeIdx));
 	DblNumVec ctbSrcUpwEquDengNodeIdx(ctbSrcUpwEquDen(gNodeIdx));
-	if(_let->terminal(gNodeIdx)==true) {
-	  //S2M
-	  pC( SrcEqu2UpwChk_dgemv(ctbSrcExaPos(gNodeIdx), ctbSrcExaNor(gNodeIdx), _let->center(gNodeIdx), _let->radius(gNodeIdx), ctbSrcExaDen(gNodeIdx), ctbSrcUpwChkValgNodeIdx) );
-	} else {
+	if(_let->terminal(gNodeIdx)==true) 
+	{
+	  if (gpu_s2m)
+	  {
+	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++) 
+	      ctbSrcUpwChkValgNodeIdx(j) = UpC->trgVal[gNodeIdx][j];
+	  }
+	  else
+	  {
+	    //S2M
+	    pC( SrcEqu2UpwChk_dgemv(ctbSrcExaPos(gNodeIdx), ctbSrcExaNor(gNodeIdx), _let->center(gNodeIdx), _let->radius(gNodeIdx), ctbSrcExaDen(gNodeIdx), ctbSrcUpwChkValgNodeIdx) );
+	  }
+	} 
+	else 
+	{
 	  //M2M
 	  for(int a=0; a<2; a++) for(int b=0; b<2; b++) for(int c=0; c<2; c++) {
 	    Index3 idx(a,b,c);
@@ -373,6 +447,18 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	pC( _matmgnt->UpwChk2UpwEqu_dgemv(_let->depth(gNodeIdx)+_rootLevel, ctbSrcUpwChkValgNodeIdx, ctbSrcUpwEquDengNodeIdx) );
       }
     }
+  }
+
+  if(gpu_s2m)
+  {
+    free (UpC->src_);
+    free (UpC->srcBoxSize);
+    free (UpC->trgCtr);
+    free (UpC->trgRad);
+    for (int i = 0; i < ordVec.size(); i++)
+      free (UpC->trgVal[ordVec[i]]);
+    free (UpC->trgVal);
+    free (UpC);
   }
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
@@ -426,7 +512,6 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     P->dim = 3;
 
     P->src_ = (float *) malloc(sizeof(float) * P->numSrc * (P->dim+1));
-    P->srcDen = (float *) malloc(sizeof(float) * P->numSrc);
     P->trg_ = (float *) malloc(sizeof(float) * P->numTrg * P->dim);
     P->trgVal = (float *) calloc(P->numTrg, sizeof(float));
 
@@ -485,15 +570,6 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
       }
     }
 
-    float OOFP_R =  1.0/(4.0 * M_PI);
-    float potential  = 0;
-    float g = 0;
-    int srcbox;
-    trgIndex = 0;
-    srcIndex = 0;
-    int s_Ind = 0;
-    int t_Ind = 0;
-
     //  Calculate dense interations
     dense_inter_gpu(P);
 
@@ -517,7 +593,6 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     // Free memory allocated for the interface
     free (P->src_);
     free (P->trg_);
-    free (P->srcDen);
     free (P->trgVal);
     free (P->uListLen);
     free (P->srcBoxSize);
