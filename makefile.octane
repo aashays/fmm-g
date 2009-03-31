@@ -1,0 +1,52 @@
+# ----------------------------machine dependent file
+DENDRO = ${HOME}/software/dendro/Dendro
+DENDRO_CPPFLAGS = \
+  -I${DENDRO}/include/oct \
+  -I${DENDRO}/include/point \
+  -I${DENDRO}/include \
+  -I${DENDRO}/include/par \
+  -I${DENDRO}/include/binOps \
+  -I${DENDRO}/include/seq
+
+USE_GPU = yes
+CUDA_DIR = /usr/local/apps/cuda/2.0beta2/cuda
+CUDA_SDK_DIR = /opt/cudaSDK
+
+MPI_DIR = /usr/local/apps/mpich2/1.0.8-nemesis--x86_64-gcc
+
+PETSC_DIR = /usr/local/apps/petsc/2.3.3-p15--gcc
+PETSC_ARCH = linux-gnu-cxx-opt
+
+FFTW_DIR = /usr/local/apps/fftw/3.2.1
+FFTW_CPPFLAGS = -I$(FFTW_DIR)/include
+FFTW_LDFLAGS = -L$(FFTW_DIR)/lib -lfftw3
+
+CFLAGS = -DPETSC_USE_LOG -DDEBUG_LET -O3 -g -Wall # -DUSE_ALLTOALLV_FIX -DUSE_ALLGATHER_FIX # -DNDEBUG -D_GLIBCXX_DEBUG 
+FFLAGS =
+CPPFLAGS = -DDS_ORG -I.. $(DENDRO_CPPFLAGS) $(FFTW_CPPFLAGS)
+FPPFLAGS =
+
+CUDA_LIBS = -L${CUDA_DIR}/lib -L${CUDA_SDK_DIR}/lib -lcuda -lcudart -lcutil
+LIBS = $(FFTW_LDFLAGS) -L${DENDRO}/lib -lOct -lPar -lBinOps -lSys -lPC ${CUDA_LIBS} # -lTest -lPoint #  
+AR = ar
+ARFLAGS = -r
+RANLIB = ranlib
+
+NVCC = nvcc
+NVFLAGS = -DDS_ORG -I.. -I$(CUDA_DIR)/include -I$(CUDA_SDK_DIR)/common/inc -I$(MPI_DIR)/include -DMPICH_SKIP_MPICXX
+
+include ${PETSC_DIR}/bmake/common/base
+
+
+%.o: %.cu
+	$(NVCC) $(NVFLAGS) -c $*.cu
+
+
+
+# %.d: %.cpp
+# 	@set -e; rm -f $@; \
+# 	  ${PCC} -MM ${PCC_FLAGS} ${CFLAGS} ${CCPPFLAGS} $< > $@.$$$$; \
+# 	  sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+# 	  rm -f $@.$$$$
+
+
