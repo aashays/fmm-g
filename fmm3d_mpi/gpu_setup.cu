@@ -16,8 +16,9 @@
 
 #if defined (GPU_CERR)
 void
-GPU_CE__ (FILE* fp, const char* filename, size_t line)
+gpu_checkerr__stdout (const char* filename, size_t line)
 {
+  FILE* fp = stdout;
   cudaError_t C_E = cudaGetLastError ();
   if (C_E) {
     int rank;
@@ -32,11 +33,24 @@ GPU_CE__ (FILE* fp, const char* filename, size_t line)
 }
 #endif
 
+void
+gpu_msg__stdout (const char* msg, const char* filename, size_t lineno)
+{
+  FILE* fp = stdout;
+  int rank;
+  char procname[MPI_MAX_PROCESSOR_NAME+1];
+  int procnamelen;
+  memset (procname, 0, sizeof (procname));
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+  MPI_Get_processor_name (procname, &procnamelen);
+  fprintf (fp, "===> [%s:%lu--p%d(%s)] %s\n", filename, lineno, rank, procname, msg);
+}
+
 size_t
 gpu_count (void)
 {
  int dev_count;
- CUDA_SAFE_CALL (cudaGetDeviceCount (&dev_count)); GPU_CE (stdout);
+ CUDA_SAFE_CALL (cudaGetDeviceCount (&dev_count)); GPU_CE;
   if (dev_count > 0) {
     fprintf (stderr, "==> Found %d GPU device%s.\n",
    dev_count,
@@ -51,7 +65,7 @@ gpu_dumpinfo (size_t dev_id)
 {
   cudaDeviceProp p;
   assert (dev_id < gpu_count ());
-  CUDA_SAFE_CALL(cudaGetDeviceProperties(&p, (int)dev_id)); GPU_CE (stdout);
+  CUDA_SAFE_CALL(cudaGetDeviceProperties(&p, (int)dev_id)); GPU_CE;
   fprintf (stderr, "==> Device %lu: \"%s\"\n", (unsigned long)dev_id, p.name);
   fprintf (stderr, " Major revision number: %d\n", p.major);
   fprintf (stderr, " Minor revision number: %d\n", p.minor);
@@ -81,7 +95,7 @@ void
 gpu_select (size_t dev_id)
 {
   fprintf (stderr, "==> Selecting GPU device: %lu\n", (unsigned long)dev_id);
-  CUDA_SAFE_CALL (cudaSetDevice ((int)dev_id)); GPU_CE (stdout);
+  CUDA_SAFE_CALL (cudaSetDevice ((int)dev_id)); GPU_CE;
   gpu_dumpinfo (dev_id);
 }
 
@@ -91,7 +105,7 @@ void *
 gpu_calloc_ (size_t n)
 {
   void* p;
-  cudaMalloc(&p, n); GPU_CE (stdout);
+  cudaMalloc(&p, n); GPU_CE;
   if (!p) {
     int mpirank;
     MPI_Comm_rank (MPI_COMM_WORLD, &mpirank);
@@ -99,7 +113,7 @@ gpu_calloc_ (size_t n)
 	     __FILE__, __LINE__, mpirank, (unsigned long)n);
   }
   assert (p);
-  cudaMemset (p, 0, n); GPU_CE (stdout);
+  cudaMemset (p, 0, n); GPU_CE;
   return p;
 }
 
@@ -134,7 +148,7 @@ void
 gpu_copy_cpu2gpu_float (float* d, const float* s, size_t n)
 {
   cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyHostToDevice);
-  GPU_CE (stdout);
+  GPU_CE;
 }
 
 void
@@ -142,7 +156,7 @@ gpu_copy_cpu2gpu_int (int* d, const int* s, size_t n)
 {
   if (n) {
     cudaMemcpy (d, s, n * sizeof (int), cudaMemcpyHostToDevice);
-    GPU_CE (stdout);
+    GPU_CE;
   }
 }
 
@@ -150,7 +164,7 @@ void
 gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n)
 {
   cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyDeviceToHost);
-  GPU_CE (stdout);
+  GPU_CE;
 }
 
 ////////////////////////////////////////BEGIN KERNEL///////////////////////////////////////////////
@@ -308,8 +322,6 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
     }
     __syncthreads();
   #ifdef DS_ORG
-//@@@      s_sh[threadIdx.x]=((float4*)s_dp)[loc_reg];
-//@@@    s_sh[threadIdx.x].x=0.0F;
       s_sh[threadIdx.x]=((float4*)s_dp)[loc_reg];
   #else
       sx_sh[threadIdx.x]=sx_dp[loc_reg];
@@ -429,20 +441,6 @@ void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *num
 //extern "C"
 //{
 void dense_inter_gpu(point3d_t *P) {
-  //Initialize device
-//  int devID;
-//  devID = cutGetMaxGflopsDeviceId();
-//  cudaSetDevice( /*devID*/ 0 ); GPU_CE (stdout)  //done: Fix this for multiple devices.. maxgflops
-//  unsigned int timer;
-//  float ms;
-//  cutCreateTimer(&timer);
-
-  int mpirank;
-  MPI_Comm_rank (MPI_COMM_WORLD, &mpirank);
-  int gpu_id = mpirank % gpu_count ();
-  fprintf (stderr, "@@ p%d --> g.%d [%d]\n", mpirank, gpu_id, gpu_count ());
-//  gpu_select (gpu_id);
-
 #ifdef DS_ORG
   float *s_dp,*t_dp;
 #else
@@ -452,18 +450,11 @@ void dense_inter_gpu(point3d_t *P) {
   int *tbdsf_dp, *tbdsr_dp;
   int *tbdsf,*tbdsr,*cs,*cp,numAugTrg=0,numSrcBoxTot=0;
   int *cs_dp,*cp_dp;
-//  cutResetTimer(timer);
-//  CUT_SAFE_CALL(cutStartTimer(timer));
-  make_ds(&tbdsf,&tbdsr,&cs,&cp,P,&numAugTrg,&numSrcBoxTot);        //done: does not exist yet
-//  CUT_SAFE_CALL(cutStopTimer(timer));
-//   ms = cutGetTimerValue(timer);
-//   cout<<"Preparing data structures: "<<ms<<"ms"<<endl;
 
-//  for(int i=0;i<numSrcBoxTot;i++) {
-//    cout<<cs[i]<<" ";
-//  }
-//   cutResetTimer(timer);
-//  CUT_SAFE_CALL(cutStartTimer(timer));
+  GPU_MSG ("GPU U-list");
+
+  make_ds (&tbdsf, &tbdsr, &cs, &cp, P, &numAugTrg, &numSrcBoxTot);
+
 #ifdef DS_ORG
   s_dp = gpu_calloc_float ((P->numSrc + BLOCK_HEIGHT) * 4); /* Padded by BLOCK_HEIGHT */
   t_dp = gpu_calloc_float ((P->numTrg + BLOCK_HEIGHT) * 3);
@@ -505,31 +496,25 @@ void dense_inter_gpu(point3d_t *P) {
   //kernel call
   int GRID_WIDTH=(int)ceil((float)numAugTrg/65535.0F);
   int GRID_HEIGHT=(int)ceil((float)numAugTrg/(float)GRID_WIDTH);
-//  cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
-//  cout<<"Number of gpu blocks: "<<numAugTrg<<endl;
   dim3 BlockDim (BLOCK_HEIGHT,BLOCK_WIDTH);  //Block width will be 1
   dim3 GridDim (GRID_HEIGHT, GRID_WIDTH);    //Grid width should be 1
-fprintf (stdout, "@@ [%s:%lu::p%d] numAugTrg=%d; BlockDim x GridDim = [%d x %d] x [%d x %d]\n", __FILE__, (unsigned long)__LINE__, mpirank, numAugTrg, BLOCK_HEIGHT, BLOCK_WIDTH, GRID_HEIGHT, GRID_WIDTH);
+  //fprintf (stdout, "@@ [%s:%lu::p%d] numAugTrg=%d; BlockDim x GridDim = [%d x %d] x [%d x %d]\n", __FILE__, (unsigned long)__LINE__, mpirank, numAugTrg, BLOCK_HEIGHT, BLOCK_WIDTH, GRID_HEIGHT, GRID_WIDTH);
 
-//  for(int i=0;i<P->numTrg;i++) {
-//    P->trgVal[i]=0.0F;
-//  }
-//  cout<<"Kernel call: ";
 #ifdef DS_ORG
 #if defined (__DEVICE_EMULATION__)
-  fprintf (stderr, ">>> Device emulation mode <<<\n");
+  GPU_MSG (">>> Device emulation mode <<<\n");
 #endif
   if (numAugTrg) // No need to call kernel if numAugTrg == 0
-    ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); GPU_CE (stdout);
+    ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(t_dp,trgVal_dp,s_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); GPU_CE;
 #else
-  ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); GPU_CE (stdout);
+  ulist_kernel<<<GridDim,BLOCK_HEIGHT>>>(tx_dp,ty_dp,tz_dp,trgVal_dp,sx_dp,sy_dp,sz_dp,srcDen_dp,tbdsr_dp,tbdsf_dp,cs_dp,cp_dp,numAugTrg); GPU_CE;
 #endif
 
   gpu_copy_gpu2cpu_float (P->trgVal, trgVal_dp, P->numTrg);
 
 #ifdef DS_ORG
-  cudaFree(s_dp); GPU_CE (stdout);
-  cudaFree(t_dp); GPU_CE (stdout);
+  cudaFree(s_dp); GPU_CE;
+  cudaFree(t_dp); GPU_CE;
 #else
   cudaFree(sx_dp);
   cudaFree(sy_dp);
@@ -542,11 +527,11 @@ fprintf (stdout, "@@ [%s:%lu::p%d] numAugTrg=%d; BlockDim x GridDim = [%d x %d] 
   cudaFree(srcDen_dp);
 #endif
 
-  cudaFree(trgVal_dp); GPU_CE (stdout);
-  cudaFree(tbdsf_dp); GPU_CE (stdout);
-  cudaFree(tbdsr_dp); GPU_CE (stdout);
-  cudaFree(cs_dp); GPU_CE (stdout);
-  cudaFree(cp_dp); GPU_CE (stdout);
+  cudaFree(trgVal_dp); GPU_CE;
+  cudaFree(tbdsf_dp); GPU_CE;
+  cudaFree(tbdsr_dp); GPU_CE;
+  cudaFree(cs_dp); GPU_CE;
+  cudaFree(cp_dp); GPU_CE;
 
   free(cs);
   free(cp);

@@ -3,6 +3,9 @@
  * \brief Implements a structure for upward computation
  */
 
+#if !defined (INC_UPCOMP_H)
+#define INC_UPCOMP_H /*!< upComp.h included */
+
 /* ============================================================================
  */
 /* \brief upComp structure */
@@ -36,5 +39,6 @@ typedef struct upComp {
 
 } upComp_t;
 
+#endif
 
 /* eof */

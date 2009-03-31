@@ -10,8 +10,10 @@ DENDRO_CPPFLAGS = \
   -I${DENDRO}/include/binOps \
   -I${DENDRO}/include/seq
 
+USE_GPU = yes
 CUDA_DIR = /usr/local/apps/cuda/2.0
 CUDA_SDK_DIR = /usr/local/apps/cudaSDK/2.0
+CUDA_LIBS = -L$(CUDA_DIR)/lib -L$(CUDA_SDK_DIR)/lib -lcuda -lcudart -lcutil
 
 MPI_DIR = /usr/local/apps/mpich2/1.0.8
 MPI_CPPFLAGS = -I$(MPI_DIR)/include -DMPICH_SKIP_MPICXX
@@ -28,7 +30,6 @@ FFLAGS =
 CPPFLAGS = -DDS_ORG -I.. $(DENDRO_CPPFLAGS) $(FFTW_CPPFLAGS)
 FPPFLAGS =
 
-CUDA_LIBS = -L${CUDA_DIR}/lib -L${CUDA_SDK_DIR}/lib -lcuda -lcudart -lcutil
 LIBS = $(FFTW_LDFLAGS) -L${DENDRO}/lib -lOct -lPar -lBinOps -lSys -lPC ${CUDA_LIBS} # -lTest -lPoint #  
 AR = ar
 ARFLAGS = -r

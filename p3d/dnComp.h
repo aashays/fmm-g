@@ -3,6 +3,9 @@
  * \brief Implements a structure for downward computation
  */
 
+#if !defined (INC_DNCOMP_H)
+#define INC_DNCOMP_H /*!< dnComp.h included */
+
 /* ============================================================================
  */
 /* \brief dnComp structure */
@@ -32,5 +35,6 @@ typedef struct dnComp {
 
 } dnComp_t;
 
+#endif
 
 /* eof */
