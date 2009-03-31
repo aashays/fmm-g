@@ -24,6 +24,8 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 
 #include "vecmatop.hpp"
 
+#include <string.h>
+
 using std::cerr;
 
 // ---------------------------------------------------------------------- 

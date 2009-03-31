@@ -1,14 +1,43 @@
 *** NOTES ABOUT PARALLEL CODE ***
 
-To compile the code:
+=== To compile the code:
 
 1. Make sure fftw-3, blas, lapack, PETSc-2.3.3 and DENDRO-1.0 ( http://www.cc.gatech.edu/csela/dendro/releases/dendro-1.0.tgz ) libraries are installed. Create the file "makefile.this_machine" in current directory (the directory where this file resides), using "makefile.ilya_laptop"  and "makefile.mpi" as examples. DO NOT use "makefile.opt" as example. That file is related to old sequential version of the code.
 2. Type "make ACTION=all tree"  in current directory.
 
-To run the test driver:
+=== To run the test driver:
 
 1. Chdir to "fmm3d_mpi".
 2. Create the options file, say "options_fmm".  You can use "options_0" as an example.
 3. Execute:
 mpirun -np N tt0 -options_file options_fmm
 
+=== To run the test driver, with GPU/CUDA U-list enabled:
+
+Add the flag, '-gpu_ulist', to the options file, and run as above.
+
+For an example, see: fmm3d_mpi/options_gpu_example
+
+=== NOTES ON RUNNING ON LINCOLN ===
+
+For documentation on Lincoln, see:
+  http://www.ncsa.uiuc.edu/UserInfo/Resources/Hardware/Intel64TeslaCluster
+
+Recommended additions to your ~/.soft file:
+
+  +cuda
+  +nvidia-sdk
+  +intel-11.0.074
+  +intel-mkl-10.0.3.020
+
+In addition, there are world-readable builds of PETSc and Dendro in Rich Vuduc's home directory. You can access these by adding these environment variables to your ~/.soft file as well. (They assume the "+intel..." options above.)
+
+  PETSC_DIR=/u/ac/rvuduc/local/lincoln/petsc/2.3.3-p15--icc
+  PETSC_ARCH=linux-gnu-cxx-opt
+  DENDRO_DIR=/u/ac/rvuduc/local/lincoln/dendro/1.0--icc
+
+For a sample PBS batch job script for the 'options_gpu_example' input, see:
+
+  fmm3d_mpi/run--options_gpu_example.pbs
+
+# eof

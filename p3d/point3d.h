@@ -3,6 +3,13 @@
  * \brief Implements a structure for u-list computation
  */
 
+#if !defined (INC_POINT3D_H)
+#define INC_POINT3D_H /*!< point3d.h included */
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /* ============================================================================
  */
 //#define DS_ORG
@@ -43,5 +50,9 @@ typedef struct point3d {
 
 } point3d_t;
 
+#if defined (__cplusplus)
+}
+#endif
+#endif
 
 /* eof */

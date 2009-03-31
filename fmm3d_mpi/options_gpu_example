@@ -1,0 +1,27 @@
+-gpu_ulist
+-repartition  uniformOct % weighted_leaves %blockPart %
+
+-distribution uniform %ellipseUniformAngles %
+-isogranular
+-numsrc 200000            %number of source points
+-preload_numsrc 100    %number of source points WHEN PRELOADING
+
+% -trgs_and_srcs_coinc
+-numtrg 200000         %number of target points (where the potential
+needs to be evaluated)
+-preload_numtrg 100  %number of target points (where the potential
+needs to be evaluated) WHEN PRELOADING
+-numchk 100
+% -preload_numchk 1
+
+% -check_all
+-preload_check_all
+
+% -kt 111                  % stokes equation, single layer velocity
+-kt 111                    %laplace equation, single layer, evaluating potential
+
+-fmm3d_np 6
+-fmm3d_let3d_ptsmax 4000
+-fmm3d_let3d_maxlevel 30
+
+-log_summary
