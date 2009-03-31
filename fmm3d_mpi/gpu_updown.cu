@@ -4,6 +4,8 @@
 //#define PI3_4I 0.238732413F
 
 #include <cassert>
+#include <cstdio>
+
 #include "../p3d/upComp.h"
 #include "../p3d/dnComp.h"
 #include "../p3d/point3d.h"//dont remove this
@@ -427,13 +429,14 @@ void gpu_up(upComp_t *UpC) {
 
 //	for(int i=0;i<UpC->trgDim;i++)
 //		cout<<UpC->samPosF[i]<<endl;
-	 cutResetTimer(timer);
-	CUT_SAFE_CALL(cutStartTimer(timer));
-	cudaMalloc((void**)&src_dp,sizeof(float)*UpC->numSrc * (UpC->dim+1)); GPU_CE;
-	cudaMalloc((void**)&trgCtr_dp,sizeof(float)*UpC->numSrcBox*3); GPU_CE;
-	cudaMalloc((void**)&trgRad_dp,sizeof(float)*UpC->numSrcBox); GPU_CE;
-	cudaMalloc((void**)&srcBox_dp,sizeof(int)*UpC->numSrcBox*2); GPU_CE;
-	cudaMalloc((void**)&trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox); GPU_CE;
+//	 cutResetTimer(timer);
+//	CUT_SAFE_CALL(cutStartTimer(timer));
+
+	src_dp = gpu_calloc_float ((UpC->numSrc + BLOCK_HEIGHT) * (UpC->dim+1)); // padded
+	trgCtr_dp = gpu_calloc_float (UpC->numSrcBox * 3);
+	trgRad_dp = gpu_calloc_float (UpC->numSrcBox);
+	srcBox_dp = gpu_calloc_int (UpC->numSrcBox * 2);
+	trgVal_dp = gpu_calloc_float (UpC->trgDim * UpC->numSrcBox);
 
 
 	cudaMemcpy((void*)src_dp,UpC->src_,sizeof(float)*UpC->numSrc * (UpC->dim+1),cudaMemcpyHostToDevice); GPU_CE;
@@ -465,11 +468,11 @@ void gpu_up(upComp_t *UpC) {
 //	cout<<"Up kernel: "<<ms<<"ms"<<endl;
 	unmake_ds_up(trgValE,UpC);	//FIXME: copies the gpu output into the 2d array used by the interface... make the interface use a 1d array
 
-	cudaFree(src_dp);
-	cudaFree(trgCtr_dp);
-	cudaFree(trgRad_dp);
-	cudaFree(srcBox_dp);
-	cudaFree(trgVal_dp);
+	cudaFree(src_dp); GPU_CE;
+	cudaFree(trgCtr_dp); GPU_CE;
+	cudaFree(trgRad_dp); GPU_CE;
+	cudaFree(srcBox_dp); GPU_CE;
+	cudaFree(trgVal_dp); GPU_CE;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,7 +27,7 @@ gpu_checkerr__stdout (const char* filename, size_t line)
     memset (procname, 0, sizeof (procname));
     MPI_Comm_rank (MPI_COMM_WORLD, &rank);
     MPI_Get_processor_name (procname, &procnamelen);
-    fprintf ((fp), "*** [%s:%lu::p%d(%s)] CUDA ERROR: %s ***\n", filename, line, rank, procname, cudaGetErrorString (C_E));
+    fprintf ((fp), "*** [%s:%lu--p%d(%s)] CUDA ERROR: %s ***\n", filename, line, rank, procname, cudaGetErrorString (C_E));
     fflush (fp);
   }
 }
