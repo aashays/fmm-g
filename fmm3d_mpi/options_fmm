@@ -1,5 +1,5 @@
 -gpu_ulist
--do_2nd_eval
+% -do_2nd_eval
 
 -u_weight 10
 -v_weight 1

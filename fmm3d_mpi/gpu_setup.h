@@ -34,6 +34,13 @@ extern "C" void gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n);
 /** Performs U-list computation */
 extern "C" void dense_inter_gpu (point3d_t*);
 
+extern "C" void gpu_up(upComp_t*);
+
+//extern "C"
+//void gpu_up_4(upComp_t*);
+
+extern "C" void gpu_down(dnComp_t*);
+
 #define GPU_CERR /*!< Enables verbose GPU error messages */
 #if defined (GPU_CERR)
 #  include <cstdio>
@@ -44,6 +51,13 @@ extern "C" void GPU_CE__ (FILE *, const char* filename, size_t line);
 #else /* ! defined (GPU_CERR) */
 /** No op */
 #  define GPU_CE(fp)
+#endif
+
+// to be removed later, just for compatibility with gpu_updown.c
+#ifdef CERR
+#define CE(C_Error) {  C_Error = cudaGetLastError();  cout<<cudaGetErrorString(C_Error)<<endl; }
+#else
+#define CE(C_Error) {}
 #endif
 
 #endif	//GPU_SETUP_H_
