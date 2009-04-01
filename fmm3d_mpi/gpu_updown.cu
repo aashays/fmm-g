@@ -14,7 +14,7 @@
 
 __constant__ float3 sampos[320];	//undefined for everything greater than 295 for 6, greater than 191 for 4
 
-__constant__ float3 samposDn[152];	//undefined for everything greater than 191 for 6 and 51 for 4S
+__constant__ float3 samposDn[152];	//undefined for everything greater than 151 for 6 and 55 for 4
 
 __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float *trgRad_dp,int *srcBox_dp,int numSrcBox) {
 	__shared__ float4 s_sh[BLOCK_HEIGHT];
