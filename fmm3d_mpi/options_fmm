@@ -1,4 +1,4 @@
--gpu_ulist
+% -gpu_ulist
 % -do_2nd_eval
 
 -u_weight 10
@@ -21,32 +21,32 @@
 % -log_trace whereItCrashes
 
 % -balance_octree
--repartition  weighted_leaves %blockPart % uniformOct
+-repartition  uniformOct % weighted_leaves %blockPart % 
 
 -distribution uniform %ellipseUniformAngles % 
 -isogranular
--numsrc 1000            %number of source points
--preload_numsrc 100    %number of source points WHEN PRELOADING
+-numsrc 15            %number of source points
+-preload_numsrc 10    %number of source points WHEN PRELOADING
 
-% -trgs_and_srcs_coinc
- -numtrg 100         %number of target points (where the potential needs to be evaluated)
- -preload_numtrg 100  %number of target points (where the potential needs to be evaluated) WHEN PRELOADING
+ -trgs_and_srcs_coinc
+%  -numtrg 100         %number of target points (where the potential needs to be evaluated)
+%  -preload_numtrg 100  %number of target points (where the potential needs to be evaluated) WHEN PRELOADING
 
 % -numchk and -preload_numchk are ignored when -check_all and
 % -preload_check_all are set, respectively
 
--numchk 1
+% -numchk 1
 % -preload_numchk 1
 
-% -check_all
+-check_all
 -preload_check_all
 
 % -kt 111                  % stokes equation, single layer velocity
 -kt 111                    %laplace equation, single layer, evaluating potential
 
--fmm3d_np 6
--fmm3d_let3d_ptsmax 1  % FIND OUT OPTIMAL!
+-fmm3d_np 4
+-fmm3d_let3d_ptsmax 2  % FIND OUT OPTIMAL!
 -fmm3d_let3d_maxlevel 30
 
-% -useRegularOctreeAtLevel 4  % will use same number of levels for preloading!
+% -useRegularOctreeAtLevel 3  % will use same number of levels for preloading!
 

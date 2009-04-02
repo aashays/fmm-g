@@ -31,6 +31,35 @@ using std::cerr;
 using std::endl;
 
 // ---------------------------------------------------------------------- 
+#undef __FUNCT__
+#define __FUNCT__ "FMM3d_MPI::InsLayerInterSectsRange"
+bool FMM3d_MPI::ParInsLayerIntersectsRange(ot::TreeNode oct, int r1, int r2)
+{
+      ot::TreeNode parent = oct.getParent();
+      ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
+
+      vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
+      neighbs.push_back(parent); // we add parent itself to get complete insulation layer
+
+      // in the loop below we find min and max neighbs (min/max in morton sense)
+      // we also substitute non-existent neighbs (which are returned as root octants)
+      // with the parent itself
+      ot::TreeNode min_neighb=parent;
+      ot::TreeNode max_neighb=parent;
+      for (size_t i=0; i<neighbs.size(); i++)
+      {
+	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
+	  neighbs[i]=parent;
+	else
+	{
+	  min_neighb=min(min_neighb,neighbs[i]);
+	  max_neighb=max(max_neighb,neighbs[i]);
+	}
+      }
+
+      // check if insulation layer intersects with the area controlled by processors r1 ... r2
+      return (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ));
+}
 
 #undef __FUNCT__
 #define __FUNCT__ "FMM3d_MPI::ExchangeOctantsTreeBased"
@@ -110,9 +139,8 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	    z = (nodes[chd_index].path2Node())(2) << _let->maxLevel()-lev;
 
 	    ot::TreeNode oct (x,y,z,lev,3/*dim*/,_let->maxLevel());
-
+	    oct.setWeight(chd_index); // we will sort octants and we need to keep track of  original indices
 	    l->push_back(oct);
-
 	  }
 	}
 	// go to first child of q 
@@ -146,37 +174,58 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 
   } // end while(q!=-1)
 
+  sort(l->begin(), l->end());
+
+  // load partial densities
+  int density_size = _matmgnt->plnDatSze(UE);
+  vector<double> * densities = new vector<double>(density_size*l->size(),10);
+  for (size_t i=0; i<l->size(); i++)
+  {
+    double * data = ctbSrcUpwEquDen( (*l)[i].getWeight() )._data;
+    for (int j=0; j<density_size; j++)
+      (*densities)[i*density_size+j] = data[j];
+  }
+
+
   MPI_Datatype mpi_treenode;
   MPI_Type_contiguous( sizeof(ot::TreeNode), MPI_BYTE, &mpi_treenode);
   MPI_Type_commit(&mpi_treenode);
 
   // communication loop:
-  for (int two_power=1; two_power<mpiSize(); two_power<<=1)
+  for (int two_power=mpiSize()/2; two_power>0; two_power>>=1)
   {
     vector<ot::TreeNode>  & ll = *l;
     int partner = mpiRank() ^ two_power;
     int r1 = partner & (mpiSize()-two_power);
     int r2 = partner | (two_power-1);
+    int q1 = mpiRank() & (mpiSize()-two_power);
+    int q2 = mpiRank() | (two_power-1);
+
+    if (!mpiRank())
+      std::cout<<"Bit: "<<two_power<<endl;
+    MPI_Barrier(mpiComm());
+    std::cout<<"Rank: "<<mpiRank()<<" peer: "<<partner<<endl;
+    MPI_Barrier(mpiComm());
 
     // build the list of octants to send to partner
     vector<ot::TreeNode> to_send;
     for(size_t q=0; q<ll.size(); q++)
     {
-      ot::TreeNode & oct = ll[q];
+      ot::TreeNode parent = ll[q].getParent();
       ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
 
-      vector<ot::TreeNode> neighbs = oct.getAllNeighbours();
-      neighbs.push_back(oct); // we add octant itself to get complete insulation layer
+	vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
+      neighbs.push_back(parent); // we add octant itself to get complete insulation layer
 
       // in the loop below we find min and max neighbs (min/max in morton sense)
       // we also substitute non-existent neighbs (which are returned as root octants)
       // with the octant itself ("oct")
-      ot::TreeNode min_neighb=oct;
-      ot::TreeNode max_neighb=oct;
+      ot::TreeNode min_neighb=parent;
+      ot::TreeNode max_neighb=parent;
       for (size_t i=0; i<neighbs.size(); i++)
       {
 	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
-	  neighbs[i]=oct;
+	  neighbs[i]=parent;
 	else
 	{
 	  min_neighb=min(min_neighb,neighbs[i]);
@@ -186,16 +235,98 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 
       // check if insulation layer intersects with the area controlled by processors r1 ... r2
       if (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ))
-	to_send.push_back(oct);
+      {
+	to_send.push_back(ll[q]);
+	to_send.back().setWeight(q);  // to keep track of density
+      }
     }
 
     // do send and receive
+    // first do sizes
+    int send_size =  to_send.size();
+    int recv_size;
+    MPI_Status status;  // we don't really use this
+    MPI_Sendrecv(&send_size, 1, MPI_INT, partner, 0, &recv_size, 1, MPI_INT, partner, 0, mpiComm(), &status);
+
+    vector<ot::TreeNode> recvd(recv_size);
+    //  int MPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Status *status) 
+    MPI_Sendrecv(send_size? &to_send[0]:0, send_size, mpi_treenode, partner, 0, recv_size? &recvd[0]:0, recv_size, mpi_treenode, partner, 0, mpiComm(), &status);
     // now recvd  contains octants received from partner
 
+    // group densities-to-send together and allocate space for received densities
+    vector<double> densities_to_send(send_size*density_size);
+    for (int i=0; i<send_size; i++)
+    {
+      double * data = &(*densities)[0] + density_size*to_send[i].getWeight();
+      for (int j=0; j<density_size; j++)
+	densities_to_send[i*density_size+j] = data[j];
+    }
+    vector<double> recvd_densities(recv_size*density_size);
+
+    // exchange densities
+    MPI_Sendrecv(send_size? &densities_to_send[0]:0, send_size*density_size, MPI_DOUBLE, partner, 0, recv_size? &recvd_densities[0]:0, recv_size*density_size, MPI_DOUBLE, partner, 0, mpiComm(), &status);
+
     // merge l and received octants; take only those octants from l, which are adressed to this process or still have to be sent somewhere; we assume both l and recvd  are Morton sorted (in ascending order)
+    vector<ot::TreeNode> * new_l = new vector<ot::TreeNode>;
+    vector<double> * new_densities = new vector<double>;
+    new_densities->reserve(densities->size()+recvd_densities.size()); // we'll resize it eventually if necessary
 
+    // merging loop, we assume both "l" and "recvd" are Morton-sorted 
+    size_t ll_ptr = 0;
+    size_t recv_ptr = 0;
+    while(ll_ptr<ll.size() && recv_ptr<recvd.size())
+    {
+      if (ll[ll_ptr] < recvd[recv_ptr])
+      {
+	if (ParInsLayerIntersectsRange(ll[ll_ptr],q1,q2))   // octants from recvd should automatically satisfy this
+	{
+	  new_l->push_back(ll[ll_ptr]); 
+	  for (int i=0; i<density_size; i++)
+	    new_densities->push_back( (*densities)[ll_ptr*density_size+i] );
+	}
+	ll_ptr++;
+      }
+      else
+      {
+	new_l->push_back(recvd[recv_ptr]); 
+	if (ll[ll_ptr] == recvd[recv_ptr])
+	{
+	  for (int i=0; i<density_size; i++)
+	    new_densities->push_back( (*densities)[ll_ptr*density_size+i]  + recvd_densities[recv_ptr*density_size+i] );
+	  ll_ptr++;
+	}
+	else
+	  for (int i=0; i<density_size; i++)
+	    new_densities->push_back( recvd_densities[recv_ptr*density_size+i] );
+	recv_ptr++;
+      }
+    }
 
-  }
+    while(ll_ptr<ll.size())
+    {
+      if (ParInsLayerIntersectsRange(ll[ll_ptr],q1,q2))   // octants from recvd should automatically satisfy this
+      {
+	new_l->push_back(ll[ll_ptr]); 
+	for (int i=0; i<density_size; i++)
+	  new_densities->push_back( (*densities)[ll_ptr*density_size+i] );
+      }
+      ll_ptr++;
+    }
+
+    while(recv_ptr<recvd.size())
+    {
+      new_l->push_back(recvd[recv_ptr]); 
+      for (int i=0; i<density_size; i++)
+	new_densities->push_back( recvd_densities[recv_ptr*density_size+i] );
+      recv_ptr++;
+    }
+
+    delete l;
+    l=new_l;
+    delete densities;
+    densities = new_densities;
+
+  } // end of the communication loop
 
   MPI_Type_free(&mpi_treenode);
 
@@ -203,61 +334,54 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
   // now insert received octants in local tree
   // some received octants may already be present in the tree, then just set the global indices
   // for now, we'll do simplistic implementation:  for each  received octant we start from root and go down the tree to find an appropriate place
-#if 0
-  for (size_t i=0; i<recvdOctants.size(); i++)
+  for (size_t i=0; i<l->size(); i++)
   {
+    int level = (*l)[i].getLevel();
+    vector<int> coord(3);
+    coord[0] = ((*l)[i].getX())>>( _let->maxLevel()-level );
+    coord[1] = ((*l)[i].getY())>>( _let->maxLevel()-level );
+    coord[2] = ((*l)[i].getZ())>>( _let->maxLevel()-level );
+
     int q= 0;  // we start from root octant
-    const struct octant_data & octData = recvdOctants[i];
 
     while(true)
     {
 #ifdef DEBUG_LET
-      assert(unsigned(nodes[q].depth()) <= octData.level);
+      assert(nodes[q].depth() <= level);
 #endif
-      if (unsigned(nodes[q].depth()) == octData.level)
+      if (nodes[q].depth() == level)
       {
 	// at this point "nodes[q]" should be same octant as "octData"
-	// thus set global indices
 #ifdef DEBUG_LET
 	Index3 path = nodes[q].path2Node();
 	for(int j=0; j<3; j++)
-	  assert(unsigned(path[j])==octData.coord[j]);
+	  assert(path[j]==coord[j]);
+	double * data = usrSrcUpwEquDen(q)._data;
+	for (int j=0; j<density_size; j++)
+	  if (nodes[q].tag() & LET_USERNODE && fabs ((*densities)[i*density_size+j] - data[j] )>1e-7)
+	  {
+	    std::cout<<mpiRank()<<" "<<(*densities)[i*density_size+j]<<" "<<data[j]<<" "<<nodes[q].glbSrcNodeIdx()<< endl;
+	    // assert(0);
+	  }
+	  // assert ( fabs ((*densities)[i*density_size+j] - data[j] )<1e-7);
 #endif
-	nodes[q].glbSrcNodeIdx() = octData.glbSrcNodeIdx;
-	nodes[q].glbSrcExaNum() = octData.glbSrcExaNum;
-	nodes[q].glbSrcExaBeg() = octData.glbSrcExaBeg;
-	nodes[q].tag() |= LET_SRCENODE;
 	break;
       }
       else // we must go deeper
       {
-	// first, if nodes[q] is leaf, create children of nodes[q]
-	if (nodes[q].chd()==-1)
-	{
-	  nodes[q].chd()=nodes.size();
-	  for(int a=0; a<2; a++) 
-	    for(int b=0; b<2; b++)
-	      for(int c=0; c<2; c++) 
-	      {
-		/* Create a new node with parent at location "q"
-		 *  child initially set to -1 
-		 *  path set to 2*"nodes[q]'s path" + the binary index of the new node's location relative to nodes[q]
-		 *  depth is set to "k's" depth + 1
-		 */
-		nodes.push_back( Node(q,-1, 2*nodes[q].path2Node()+Index3(a,b,c), nodes[q].depth()+1) );
-	      }
-	}
+	// first, if nodes[q] is leaf, complain fiercely
+	assert(nodes[q].chd()!=-1);
 	
 	// now go to the appropriate child of nodes[q] (maybe just created by code above)
 	unsigned idx[3];
 	for(int j=0; j<3; j++)
-	  idx[j]=( octData.coord[j] >> (octData.level - nodes[q].depth() - 1) ) & 1; 
+	  idx[j]=( coord[j] >> (level - nodes[q].depth() - 1) ) & 1; 
 	q = nodes[q].chd() + idx[0]*4+idx[1]*2+idx[2];
       }
     }
   }
-#endif
   delete l;
+  delete densities;
   return 0;
 }
 
@@ -352,12 +476,17 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if ((papi_retval = PAPI_flops(&papi_real_time, &papi_proc_time, &papi_flpops, &papi_mflops)) != PAPI_OK)
     SETERRQ1(1,"PAPI failed with errorcode %d",papi_retval);
 #endif
+
+#ifdef COMPILE_GPU
   upComp_t *UpC;
+#endif
+
   PetscTruth gpu_s2m;
   PetscOptionsHasName(0,"-gpu_s2m",&gpu_s2m);
   if (gpu_s2m)
     // compute s2m for all leaves at once
   {
+#ifdef COMPILE_GPU
     /* Allocate memory for the upward computation structure for GPU */
     if ( (UpC = (upComp_t*) calloc (1, sizeof (upComp_t))) == NULL ) {
       fprintf (stderr, " Error allocating memory for upward computation structure\n");
@@ -411,6 +540,9 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     }
 
     gpu_up(UpC);
+#else
+    SETERRQ(1,"GPU code not compiled");
+#endif
   }
 
   for(size_t i=0; i<ordVec.size(); i++) {
@@ -423,8 +555,12 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	{
 	  if (gpu_s2m)
 	  {
+#ifdef COMPILE_GPU
 	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++) 
 	      ctbSrcUpwChkValgNodeIdx(j) = UpC->trgVal[gNodeIdx][j];
+#else
+	    SETERRQ(1,"GPU code not compiled");
+#endif
 	  }
 	  else
 	  {
@@ -451,6 +587,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 
   if(gpu_s2m)
   {
+#ifdef COMPILE_GPU
     free (UpC->src_);
     free (UpC->srcBoxSize);
     free (UpC->trgCtr);
@@ -459,6 +596,9 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
       free (UpC->trgVal[ordVec[i]]);
     free (UpC->trgVal);
     free (UpC);
+#else
+    SETERRQ(1,"GPU code not compiled");
+#endif
   }
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
@@ -469,6 +609,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 #endif
   PetscLogEventEnd(EvalUpwComp_event,0,0,0,0);
   
+
   //4. vectbscatters
   if (!skip_communication)
   {
@@ -642,6 +783,9 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     PetscLogEventEnd(EvalGlb2UsrEquEnd_event,0,0,0,0);
   }
   
+  // debug
+  ExchangeOctantsTreeBased();
+
   //V
   PetscLogEventBegin(EvalVList_event,0,0,0,0);
 #ifdef HAVE_PAPI
