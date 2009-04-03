@@ -28,6 +28,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 #endif
 
 using std::cerr;
+using std::cout;
 using std::endl;
 
 // ---------------------------------------------------------------------- 
@@ -35,36 +36,41 @@ using std::endl;
 #define __FUNCT__ "FMM3d_MPI::InsLayerInterSectsRange"
 bool FMM3d_MPI::ParInsLayerIntersectsRange(ot::TreeNode oct, int r1, int r2)
 {
-      ot::TreeNode parent = oct.getParent();
-      ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
+  ot::TreeNode parent = oct.getParent();
+  ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
 
-      vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
-      neighbs.push_back(parent); // we add parent itself to get complete insulation layer
+  vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
+  neighbs.push_back(parent); // we add parent itself to get complete insulation layer
 
-      // in the loop below we find min and max neighbs (min/max in morton sense)
-      // we also substitute non-existent neighbs (which are returned as root octants)
-      // with the parent itself
-      ot::TreeNode min_neighb=parent;
-      ot::TreeNode max_neighb=parent;
-      for (size_t i=0; i<neighbs.size(); i++)
-      {
-	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
-	  neighbs[i]=parent;
-	else
-	{
-	  min_neighb=min(min_neighb,neighbs[i]);
-	  max_neighb=max(max_neighb,neighbs[i]);
-	}
-      }
+  // in the loop below we find min and max neighbs (min/max in morton sense)
+  // we also substitute non-existent neighbs (which are returned as root octants)
+  // with the parent itself
+  ot::TreeNode min_neighb=parent;
+  ot::TreeNode max_neighb=parent;
+  for (size_t i=0; i<neighbs.size(); i++)
+  {
+    if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
+      continue;
+
+    if (neighbs[i].getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || neighbs[i].getDFD()<_let->procMins[r2+1] ))
+      return true;
+    // 	  min_neighb=min(min_neighb,neighbs[i]);
+    // 	  max_neighb=max(max_neighb,neighbs[i]);
+  }
 
       // check if insulation layer intersects with the area controlled by processors r1 ... r2
-      return (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ));
+//       bool overlaps = (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ));
+//       if (oct.getX()==0 && oct.getY()==805306368 && oct.getZ()==268435456 && oct.getLevel()==3)
+// 	cout<<"Rank: "<<mpiRank()<<" Octant: "<< oct << " r1="<<r1<<" r2="<<r2<<" Overlaps="<<overlaps<<endl;
+//       return overlaps;
+  return false;  // if we got to this point, none of the neighbs intersects with the range
 }
 
 #undef __FUNCT__
 #define __FUNCT__ "FMM3d_MPI::ExchangeOctantsTreeBased"
 int FMM3d_MPI::ExchangeOctantsTreeBased()
 {
+  using namespace std;
   // so far we only support size of communicator which is power of 2
   pA( !(mpiSize() & (mpiSize()-1)) );
   vector<Let3d_MPI::Node> & nodes = _let->nodeVec();
@@ -125,12 +131,12 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
       if (past_last_cpu-first_cpu > 1)  // if insulation layer is not entirely local...
       {
 	// if insulation layer of an octant lies inside the area owned by single process, and this octant encloses some sources that our process owns, then this "single process" is OUR process
-	// mark all children (which must exist, since node is non-terminal) THAT WE OWN
+	// mark all children (which must exist, since node is non-terminal) THAT WE CONTRIBUTE TO
 	// as ``shared''
 	for (int chd_num=0; chd_num<8; chd_num++)
 	{
 	  int chd_index=nodes[q].chd()+chd_num;
-	  if (nodes[chd_index].tag() & LET_OWNRNODE)
+	  if (nodes[chd_index].tag() & LET_CBTRNODE)
 	  {
 	    unsigned lev=_let->depth(chd_index);
 	    unsigned x,y,z;
@@ -201,40 +207,18 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
     int q1 = mpiRank() & (mpiSize()-two_power);
     int q2 = mpiRank() | (two_power-1);
 
-    if (!mpiRank())
-      std::cout<<"Bit: "<<two_power<<endl;
-    MPI_Barrier(mpiComm());
-    std::cout<<"Rank: "<<mpiRank()<<" peer: "<<partner<<endl;
-    MPI_Barrier(mpiComm());
+//     if (!mpiRank())
+//       std::cout<<"Bit: "<<two_power<<endl;
+//     MPI_Barrier(mpiComm());
+//     std::cout<<"Rank: "<<mpiRank()<<" peer: "<<partner<<endl;
+//     MPI_Barrier(mpiComm());
 
     // build the list of octants to send to partner
     vector<ot::TreeNode> to_send;
     for(size_t q=0; q<ll.size(); q++)
     {
-      ot::TreeNode parent = ll[q].getParent();
-      ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
-
-	vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
-      neighbs.push_back(parent); // we add octant itself to get complete insulation layer
-
-      // in the loop below we find min and max neighbs (min/max in morton sense)
-      // we also substitute non-existent neighbs (which are returned as root octants)
-      // with the octant itself ("oct")
-      ot::TreeNode min_neighb=parent;
-      ot::TreeNode max_neighb=parent;
-      for (size_t i=0; i<neighbs.size(); i++)
-      {
-	if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
-	  neighbs[i]=parent;
-	else
-	{
-	  min_neighb=min(min_neighb,neighbs[i]);
-	  max_neighb=max(max_neighb,neighbs[i]);
-	}
-      }
-
       // check if insulation layer intersects with the area controlled by processors r1 ... r2
-      if (max_neighb.getDLD()>=_let->procMins[r1]  && (r2==mpiSize()-1 || min_neighb.getDFD()<_let->procMins[r2+1] ))
+      if (ParInsLayerIntersectsRange(ll[q],r1,r2))
       {
 	to_send.push_back(ll[q]);
 	to_send.back().setWeight(q);  // to keep track of density
@@ -356,21 +340,24 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	Index3 path = nodes[q].path2Node();
 	for(int j=0; j<3; j++)
 	  assert(path[j]==coord[j]);
-	double * data = usrSrcUpwEquDen(q)._data;
-	for (int j=0; j<density_size; j++)
-	  if (nodes[q].tag() & LET_USERNODE && fabs ((*densities)[i*density_size+j] - data[j] )>1e-7)
-	  {
-	    std::cout<<mpiRank()<<" "<<(*densities)[i*density_size+j]<<" "<<data[j]<<" "<<nodes[q].glbSrcNodeIdx()<< endl;
-	    // assert(0);
-	  }
-	  // assert ( fabs ((*densities)[i*density_size+j] - data[j] )<1e-7);
 #endif
+	//  if this octant is really used on this process (is on some list of some "local" octant)
+	if ( nodes[q].tag() & LET_USERNODE )
+	{
+	  double * data = usrSrcUpwEquDen(q)._data;
+	  for (int j=0; j<density_size; j++)
+	    data[j]= (*densities)[i*density_size+j];
+	}
 	break;
       }
       else // we must go deeper
       {
 	// first, if nodes[q] is leaf, complain fiercely
-	assert(nodes[q].chd()!=-1);
+	if (nodes[q].chd()==-1)
+	{
+	  cout<<"Unneded octant! My rank: "<<mpiRank()<<" Octant: "<< (*l)[i] << endl;
+	  assert(false);
+	}
 	
 	// now go to the appropriate child of nodes[q] (maybe just created by code above)
 	unsigned idx[3];
@@ -413,12 +400,15 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if (skip_communication && !mpiRank())
     std::cout<<"!!!!! All communications during interaction evaluation are skipped. Results are incorrect !!!!"<<endl; 
       
+  PetscTruth use_treebased_broadcast;
+  PetscOptionsHasName(0,"-use_treebased_broadcast",&use_treebased_broadcast);
 
   //1. zero out vecs.  This includes all global, contributor, user, evaluator vectors.
   PetscScalar zero=0.0;
   pC( VecSet(trgVal, zero) );
   pC( VecSet(_glbSrcExaDen, zero) );
-  pC( VecSet(_glbSrcUpwEquDen, zero) );
+  if (!use_treebased_broadcast)
+    pC( VecSet(_glbSrcUpwEquDen, zero) );
   pC( VecSet(_ctbSrcExaDen, zero) );
   pC( VecSet(_ctbSrcUpwEquDen, zero) );
   pC( VecSet(_ctbSrcUpwChkVal, zero) );
@@ -614,15 +604,25 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if (!skip_communication)
   {
     MPI_Barrier(mpiComm()); // for accurate timing, since synchronization is possible inside VecScatterBegin/End
-    PetscLogEventBegin(EvalCtb2GlbEqu_event,0,0,0,0);
-    pC( VecScatterBegin( _ctb2GlbSrcUpwEquDen, _ctbSrcUpwEquDen, _glbSrcUpwEquDen,    ADD_VALUES, SCATTER_FORWARD) );
-    pC( VecScatterEnd(_ctb2GlbSrcUpwEquDen,   _ctbSrcUpwEquDen, _glbSrcUpwEquDen,    ADD_VALUES, SCATTER_FORWARD) );
-    PetscLogEventEnd(EvalCtb2GlbEqu_event,0,0,0,0);
+    if (!use_treebased_broadcast)
+    {
+      PetscLogEventBegin(EvalCtb2GlbEqu_event,0,0,0,0);
+      pC( VecScatterBegin( _ctb2GlbSrcUpwEquDen, _ctbSrcUpwEquDen, _glbSrcUpwEquDen,    ADD_VALUES, SCATTER_FORWARD) );
+      pC( VecScatterEnd(_ctb2GlbSrcUpwEquDen,   _ctbSrcUpwEquDen, _glbSrcUpwEquDen,    ADD_VALUES, SCATTER_FORWARD) );
+      PetscLogEventEnd(EvalCtb2GlbEqu_event,0,0,0,0);
+    }
 
     MPI_Barrier(mpiComm()); // for accurate timing, since synchronization is possible inside VecScatterBegin/End
     PetscLogEventBegin(EvalGlb2UsrEquBeg_event,0,0,0,0);
-    // sending equiv. densities from owners to users is overlapped with U-list computations
-    pC( VecScatterBegin(_usr2GlbSrcUpwEquDen, _glbSrcUpwEquDen, _usrSrcUpwEquDen, INSERT_VALUES, SCATTER_REVERSE) );
+    // sending equiv. densities from owners to users is overlapped (in some cases) with U-list computations
+    if(use_treebased_broadcast)
+    {
+      if (!mpiRank())
+	cout<<"Using tree-based broadcast"<<endl;
+      ExchangeOctantsTreeBased();
+    }
+    else
+      pC( VecScatterBegin(_usr2GlbSrcUpwEquDen, _glbSrcUpwEquDen, _usrSrcUpwEquDen, INSERT_VALUES, SCATTER_REVERSE) );
     PetscLogEventEnd(EvalGlb2UsrEquBeg_event,0,0,0,0);
 
     MPI_Barrier(mpiComm()); // for accurate timing, since synchronization is possible inside VecScatterBegin/End
@@ -775,7 +775,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   }
   PetscLogEventEnd(EvalUList_event,0,0,0,0);
 
-  if (!skip_communication)
+  if (!skip_communication && !use_treebased_broadcast)
   {
     PetscLogEventBegin(EvalGlb2UsrEquEnd_event,0,0,0,0);
     // sending equiv. densities from owners to users is overlapped with U-list computations (scatterBegin is several lines above)
@@ -783,8 +783,6 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     PetscLogEventEnd(EvalGlb2UsrEquEnd_event,0,0,0,0);
   }
   
-  // debug
-  ExchangeOctantsTreeBased();
 
   //V
   PetscLogEventBegin(EvalVList_event,0,0,0,0);

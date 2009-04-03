@@ -1,3 +1,5 @@
+-use_treebased_broadcast
+
 % -gpu_ulist
 % -do_2nd_eval
 
