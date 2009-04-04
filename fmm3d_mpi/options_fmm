@@ -27,7 +27,7 @@
 
 -distribution uniform %ellipseUniformAngles % 
 -isogranular
--numsrc 15            %number of source points
+-numsrc 10            %number of source points
 -preload_numsrc 10    %number of source points WHEN PRELOADING
 
  -trgs_and_srcs_coinc
@@ -47,7 +47,7 @@
 -kt 111                    %laplace equation, single layer, evaluating potential
 
 -fmm3d_np 4
--fmm3d_let3d_ptsmax 2  % FIND OUT OPTIMAL!
+-fmm3d_let3d_ptsmax 1  % FIND OUT OPTIMAL!
 -fmm3d_let3d_maxlevel 30
 
 % -useRegularOctreeAtLevel 3  % will use same number of levels for preloading!

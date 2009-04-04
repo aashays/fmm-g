@@ -39,14 +39,15 @@ bool FMM3d_MPI::ParInsLayerIntersectsRange(ot::TreeNode oct, int r1, int r2)
   ot::TreeNode parent = oct.getParent();
   ot::TreeNode root_oct(3/*dim*/, _let->maxLevel());
 
+  if (parent==root_oct)
+    return true;
+
   vector<ot::TreeNode> neighbs = parent.getAllNeighbours();
   neighbs.push_back(parent); // we add parent itself to get complete insulation layer
 
   // in the loop below we find min and max neighbs (min/max in morton sense)
   // we also substitute non-existent neighbs (which are returned as root octants)
   // with the parent itself
-  ot::TreeNode min_neighb=parent;
-  ot::TreeNode max_neighb=parent;
   for (size_t i=0; i<neighbs.size(); i++)
   {
     if (neighbs[i]==root_oct)  //this  means corresponding neighb. does not exist
@@ -128,7 +129,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
       vector<ot::TreeNode>::const_iterator past_last_cpu = upper_bound(_let->procMins.begin(),_let->procMins.end(),max_neighb.getDLD());
       // now past_last_cpu points to first element which is greater than search key (maybe procMins.end() )
 
-      if (past_last_cpu-first_cpu > 1)  // if insulation layer is not entirely local...
+      if ( past_last_cpu-first_cpu > 1)  // if insulation layer is not entirely local...
       {
 	// if insulation layer of an octant lies inside the area owned by single process, and this octant encloses some sources that our process owns, then this "single process" is OUR process
 	// mark all children (which must exist, since node is non-terminal) THAT WE CONTRIBUTE TO
@@ -153,6 +154,21 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	q=nodes[q].chd();
 	continue;  // (while loop)
       }
+      else
+	// do a local copy
+	for (int chd_num=0; chd_num<8; chd_num++)
+	{
+	  int chd_index=nodes[q].chd()+chd_num;
+	  if (nodes[chd_index].tag() & LET_CBTRNODE && nodes[chd_index].tag() & LET_USERNODE)
+	  {
+	    int density_size = _matmgnt->plnDatSze(UE);
+	    double * dest = usrSrcUpwEquDen(chd_index)._data;
+	    double * src = ctbSrcUpwEquDen(chd_index)._data;
+	    for (int j=0; j<density_size; j++)
+	      dest[j] = src[j];
+	  }
+	}
+
     } // end if (!terminal(q))
 
     // otherwise (i.e. if q is a leaf, or does not enclose any sources, or its insulation 
@@ -184,7 +200,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 
   // load partial densities
   int density_size = _matmgnt->plnDatSze(UE);
-  vector<double> * densities = new vector<double>(density_size*l->size(),10);
+  vector<double> * densities = new vector<double>(density_size*l->size());
   for (size_t i=0; i<l->size(); i++)
   {
     double * data = ctbSrcUpwEquDen( (*l)[i].getWeight() )._data;
@@ -254,7 +270,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
     vector<ot::TreeNode> * new_l = new vector<ot::TreeNode>;
     vector<double> * new_densities = new vector<double>;
     new_densities->reserve(densities->size()+recvd_densities.size()); // we'll resize it eventually if necessary
-
+    
     // merging loop, we assume both "l" and "recvd" are Morton-sorted 
     size_t ll_ptr = 0;
     size_t recv_ptr = 0;
@@ -280,8 +296,10 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	  ll_ptr++;
 	}
 	else
+	{
 	  for (int i=0; i<density_size; i++)
 	    new_densities->push_back( recvd_densities[recv_ptr*density_size+i] );
+	}
 	recv_ptr++;
       }
     }
