@@ -27,7 +27,7 @@
 
 -distribution uniform %ellipseUniformAngles % 
 -isogranular
--numsrc 10            %number of source points
+-numsrc 58            %number of source points
 -preload_numsrc 10    %number of source points WHEN PRELOADING
 
  -trgs_and_srcs_coinc

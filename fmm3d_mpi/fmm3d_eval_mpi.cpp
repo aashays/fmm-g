@@ -150,9 +150,6 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	    l->push_back(oct);
 	  }
 	}
-	// go to first child of q 
-	q=nodes[q].chd();
-	continue;  // (while loop)
       }
       else
 	// do a local copy
@@ -169,6 +166,9 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	  }
 	}
 
+      // go to first child of q 
+      q=nodes[q].chd();
+      continue;  // (while loop)
     } // end if (!terminal(q))
 
     // otherwise (i.e. if q is a leaf, or does not enclose any sources, or its insulation 
