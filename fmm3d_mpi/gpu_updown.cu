@@ -1,8 +1,10 @@
+//#define SAVE_ME_FROM_FLTNUMMAT
 
 //#define CERR
 #define PI_4I 0.079577471F
+//#define PI3_4I 0.238732413F
 #include <cutil.h>
-//#include <cutil_inline.h>
+#include <cutil_inline.h>
 #include "../p3d/upComp.h"
 #include "../p3d/dnComp.h"
 #include "../p3d/point3d.h"//dont remove this
@@ -404,32 +406,19 @@ void gpu_up(upComp_t *UpC) {
 #ifdef CERR
 	cudaError_t C_E;
 #endif
-//	cout<<"sdugdfjb"<<endl;
-//	int devId;
-//	devId=cuGetMaxGflopsDeviceId();
 	cudaSetDevice(0);
-	unsigned int timer;
-	float ms;
-	cutCreateTimer(&timer);
+//	unsigned int timer;
+//	float ms;
+//	cutCreateTimer(&timer);
 
 	float *src_dp,*trgVal_dp,*trgCtr_dp,*trgRad_dp;
-//	int *srcBoxSize_dp,srcBoxStart_dp;
 	int *srcBox_dp;
 
 	float trgValE[UpC->trgDim*UpC->numSrcBox];
-//	cout<<"asdasd "<<UpC->trgDim<<endl;
-//	cout<<"wut wut: "<<UpC->samPosF<<endl;
-//	float sampos[UpC->trgDim*3];
 	int srcBox[2*UpC->numSrcBox];
-//	float samp[296*3];
 
 	make_ds_up(srcBox,UpC);
-//	transpose(UpC->samPosF,samp,296,3);
 
-//	for(int i=0;i<UpC->trgDim;i++)
-//		cout<<UpC->samPosF[i]<<endl;
-	 cutResetTimer(timer);
-	CUT_SAFE_CALL(cutStartTimer(timer));
 	cudaMalloc((void**)&src_dp,sizeof(float)*UpC->numSrc * (UpC->dim+1)); CE(C_E)
 	cudaMalloc((void**)&trgCtr_dp,sizeof(float)*UpC->numSrcBox*3); CE(C_E)
 	cudaMalloc((void**)&trgRad_dp,sizeof(float)*UpC->numSrcBox); CE(C_E)
@@ -478,7 +467,6 @@ void make_ds_down(int *trgBox,dnComp_t *DnC) {
 	int tot=0;
 	for(int i=0;i<DnC->numTrgBox;i++) {
 		int rem=DnC->trgBoxSize[i];
-		if(rem==0) cout<<i<<" ";
 		while(rem>0) {
 			trgBox[tt++]=tot;		//start
 			int size=(rem<BLOCK_HEIGHT)?rem:BLOCK_HEIGHT;
@@ -496,9 +484,6 @@ void unmake_ds_down(float *trgValE,dnComp_t *DnC) {
 		for(int j=0;j<DnC->trgBoxSize[i];j++) {
 			if(DnC->trgVal[i]!=NULL)
 				DnC->trgVal[i][j]=trgValE[t++];
-//			t++;
-//			cout<<i<<","<<j<<endl;
-//			cout<<trgValE[t-1]<<endl;
 		}
 	}
 }
@@ -630,7 +615,9 @@ __global__ void dn_kernel_4(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,floa
 		__syncthreads();
 		for(int src=0;src<56;src++) {
 			dX_reg=s_sh[src].x-t_reg.x;
+
 			dY_reg=s_sh[src].y-t_reg.y;
+
 			dZ_reg=s_sh[src].z-t_reg.z;
 
 			dX_reg*=dX_reg;
@@ -646,8 +633,6 @@ __global__ void dn_kernel_4(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,floa
 
 		if(threadIdx.x<trgBox.y)
 			trgVal_dp[trgBox.x+threadIdx.x]=tv_reg*PI_4I;
-//			trgVal_dp[trgBox.x+threadIdx.x]=t_reg.x;
-//			trgVal_dp[trgBox.x+threadIdx.x]=trgBox.z;
 	}//extra padding block
 
 }
@@ -665,21 +650,21 @@ void gpu_down(dnComp_t *DnC) {
 	cudaError_t C_E;
 #endif
 	cudaSetDevice(0);
-
+//	DnC->numTrgBox=75;
 	float *trg_dp,*trgVal_dp,*srcCtr_dp,*srcRad_dp,*srcDen_dp;
 //	int *srcBoxSize_dp,srcBoxStart_dp;
 	int *trgBox_dp;	//has start and size and block
 //	float trgValE[DnC->numTrg];
-	float *trgValE=(float*)malloc(DnC->numTrg*sizeof(float));
+	float *trgValE=(float*)calloc(DnC->numTrg,sizeof(float));
 	if(trgValE==NULL) cout<<"segfault imminent"<<endl;
 	int numAugTrg=getnumAugTrg(DnC);
 	int trgBox[3*numAugTrg];
-
+//	cout<<"srcdim is: "<<DnC->srcDim<<endl;
 	make_ds_down(trgBox,DnC);
 
-//	cout<<"trg: "<<endl;
-//	for(int i=0;i<100;i++) {
-//		cout<<DnC->trg_[i]<<endl;
+//	cout<<"srcctr: "<<endl;
+//	for(int i=0;i<3*DnC->numTrgBox;i++) {
+//		cout<<DnC->srcCtr[i]<<endl;
 //	}
 
 	cudaMalloc((void**)&trg_dp,sizeof(float)*(DnC->numTrg+BLOCK_HEIGHT) * (DnC->dim)); CE(C_E)
