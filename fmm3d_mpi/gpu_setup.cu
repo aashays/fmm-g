@@ -8,6 +8,8 @@
 #include <cuda.h>
 #include <cutil.h>
 
+#include "../p3d/dnComp.h"
+#include "../p3d/upComp.h"
 #include "../p3d/point3d.h"
 #include "gpu_setup.h"
 

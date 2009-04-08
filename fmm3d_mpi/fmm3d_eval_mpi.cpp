@@ -30,7 +30,7 @@ Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 using std::cerr;
 using std::endl;
 
-// ---------------------------------------------------------------------- 
+// ----------------------------------------------------------------------
 #undef __FUNCT__
 #define __FUNCT__ "FMM3d_MPI::evaluate"
 int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
@@ -49,16 +49,16 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   PetscInt tmp;
   pC( VecGetSize(srcDen,&tmp) );  pA(tmp==srcDOF()*procGlbNum(_srcPos));
   pC( VecGetSize(trgVal,&tmp) );  pA(tmp==trgDOF()*procGlbNum(_trgPos));
-  
+
   int srcDOF = this->srcDOF();
   int trgDOF = this->trgDOF();
-  
+
   // shall we skip all communication? (results will be incorrect, of course)
   PetscTruth skip_communication;
   PetscOptionsHasName(0,"-eval_skip_communication",&skip_communication);
   if (skip_communication && !mpiRank())
-    std::cout<<"!!!!! All communications during interaction evaluation are skipped. Results are incorrect !!!!"<<endl; 
-      
+    std::cout<<"!!!!! All communications during interaction evaluation are skipped. Results are incorrect !!!!"<<endl;
+
 
   //1. zero out vecs.  This includes all global, contributor, user, evaluator vectors.
   PetscScalar zero=0.0;
@@ -70,10 +70,10 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   pC( VecSet(_ctbSrcUpwChkVal, zero) );
   pC( VecSet(_usrSrcExaDen, zero) );
   pC( VecSet(_usrSrcUpwEquDen, zero) );
-  pC( VecSet(_evaTrgExaVal, zero) );  
+  pC( VecSet(_evaTrgExaVal, zero) );
   pC( VecSet(_evaTrgDwnEquDen, zero) );
   pC( VecSet(_evaTrgDwnChkVal, zero) );
-  
+
   vector<int> ordVec;
   pC( _let->upwOrderCollect(ordVec) ); //BOTTOM UP collection of nodes
 
@@ -113,7 +113,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     pC( VecScatterBegin(_usr2GlbSrcExaDen, _glbSrcExaDen, _usrSrcExaDen, INSERT_VALUES, SCATTER_REVERSE) );
     PetscLogEventEnd(EvalGlb2UsrExaBeg_event,0,0,0,0);
   }
-  
+
   //3. up computation
   PetscLogEventBegin(EvalUpwComp_event,0,0,0,0);
 #ifdef HAVE_PAPI
@@ -189,11 +189,11 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
       if(_let->depth(gNodeIdx)>=0) {
 	DblNumVec ctbSrcUpwChkValgNodeIdx(ctbSrcUpwChkVal(gNodeIdx));
 	DblNumVec ctbSrcUpwEquDengNodeIdx(ctbSrcUpwEquDen(gNodeIdx));
-	if(_let->terminal(gNodeIdx)==true) 
+	if(_let->terminal(gNodeIdx)==true)
 	{
 	  if (gpu_s2m)
 	  {
-	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++) 
+	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++)
 	      ctbSrcUpwChkValgNodeIdx(j) = UpC->trgVal[gNodeIdx][j];
 	  }
 	  else
@@ -201,8 +201,8 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	    //S2M
 	    pC( SrcEqu2UpwChk_dgemv(ctbSrcExaPos(gNodeIdx), ctbSrcExaNor(gNodeIdx), _let->center(gNodeIdx), _let->radius(gNodeIdx), ctbSrcExaDen(gNodeIdx), ctbSrcUpwChkValgNodeIdx) );
 	  }
-	} 
-	else 
+	}
+	else
 	{
 	  //M2M
 	  for(int a=0; a<2; a++) for(int b=0; b<2; b++) for(int c=0; c<2; c++) {
@@ -238,7 +238,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   PetscLogFlops(papi_flpops2-papi_flpops);
 #endif
   PetscLogEventEnd(EvalUpwComp_event,0,0,0,0);
-  
+
   //4. vectbscatters
   if (!skip_communication)
   {
@@ -260,7 +260,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     pC( VecScatterEnd(_usr2GlbSrcExaDen, _glbSrcExaDen, _usrSrcExaDen, INSERT_VALUES, SCATTER_REVERSE) );
     PetscLogEventEnd(EvalGlb2UsrExaEnd_event,0,0,0,0);
   }
-  
+
   // U-list computation
   PetscLogEventBegin(EvalUList_event,0,0,0,0);
   PetscTruth gpu_ulist;
@@ -352,7 +352,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	if( _let->terminal(gNodeIdx)==true ) { //terminal
 	  for(int t = 0; t < P->trgBoxSize[gNodeIdx]; t++) {
 	     // std::cout<<P->trgVal[t+trgIndex]<<" ";
-	    evaTrgExaVal(gNodeIdx)(t)= P->trgVal[t+trgIndex]; 
+	    evaTrgExaVal(gNodeIdx)(t)= P->trgVal[t+trgIndex];
 	  }
 	}
       }
@@ -366,7 +366,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     free (P->uListLen);
     free (P->srcBoxSize);
     free (P->trgBoxSize);
-    for(int i=ordVec.size()-1; i >= 0; i--) 
+    for(int i=ordVec.size()-1; i >= 0; i--)
       free (P->uList[ordVec[i]]);
     free (P->uList);
     free (P);
@@ -409,7 +409,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     pC( VecScatterEnd(_usr2GlbSrcUpwEquDen, _glbSrcUpwEquDen, _usrSrcUpwEquDen, INSERT_VALUES, SCATTER_REVERSE) );
     PetscLogEventEnd(EvalGlb2UsrEquEnd_event,0,0,0,0);
   }
-  
+
   //V
   PetscLogEventBegin(EvalVList_event,0,0,0,0);
 #ifdef HAVE_PAPI
@@ -420,7 +420,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 #endif
   for(size_t i=0; i<ordVec.size(); i++) {
     int gNodeIdx = ordVec[i];
-    if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator		
+    if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator
       Point3 gNodeIdxctr(_let->center(gNodeIdx));
       double D = 2.0 * _let->radius(gNodeIdx);
 
@@ -438,7 +438,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	if(trgnode.vLstInCnt()==0) {
 	  trgnode.effVal().resize( _matmgnt->effDatSze(DC) );			 setvalue(trgnode.effVal(), 0.0); //1. resize effVal
 	}
-	//M2L		  
+	//M2L
 	pC( _matmgnt->UpwEqu2DwnChk_dgemv(_let->depth(gNodeIdx)+_rootLevel, idx, srcnode.effDen(), trgnode.effVal()) );
 
 	srcnode.vLstOthCnt()++;
@@ -488,7 +488,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	    pC( SrcEqu2TrgChk_dgemv(usrSrcExaPos(*vi), usrSrcExaNor(*vi), evaTrgExaPos(gNodeIdx), usrSrcExaDen(*vi), evaTrgExaVal_gNodeIdx) );
 	  } else {
 	    //M2T
-	    int vni = *vi;		
+	    int vni = *vi;
 	    pC( UpwEqu2TrgChk_dgemv(_let->center(vni), _let->radius(vni), evaTrgExaPos(gNodeIdx), usrSrcUpwEquDen(*vi), evaTrgExaVal_gNodeIdx) );
 	  }
 	}
@@ -545,11 +545,101 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if ((papi_retval = PAPI_flops(&papi_real_time, &papi_proc_time, &papi_flpops, &papi_mflops)) != PAPI_OK)
     SETERRQ1(1,"PAPI failed with errorcode %d",papi_retval);
 #endif
+  dnComp_t *DnC;
+  PetscTruth gpu_l2t;
+  PetscOptionsHasName(0,"-gpu_l2t",&gpu_l2t);
+  if (gpu_l2t) {
+
+//	  dnComp_t *DnC;
+	   if ( (DnC = (dnComp_t*) calloc (1, sizeof (dnComp_t))) == NULL ) {
+	 	fprintf (stderr, " Error allocating memory for downward computation structure\n");
+	         return 1;
+	   }
+	   /* Copy data into the downward computation structure defined by 'DnC' */
+	   DnC->tag = DE;
+	   DnC->numTrg = procLclNum(_evaTrgExaPos);
+	   DnC->dim = 3;
+	   DnC->numTrgBox = ordVec.size();		//ordvec correct
+
+	   DnC->trg_ = (float *) malloc(sizeof(float) * DnC->numTrg * DnC->dim);
+	   DnC->trgVal = (float**) malloc (sizeof(float*) * DnC->numTrgBox );
+	   DnC->trgBoxSize = (int *) calloc (ordVec.size(), sizeof(int));
+	   DnC->srcCtr = (float *) calloc (DnC->numTrgBox * DnC->dim, sizeof(float));
+	   DnC->srcRad = (float *) calloc (DnC->numTrgBox, sizeof(float));
+//	   samPos = this->matmgnt()->samPos(DnC->tag);
+
+		const DblNumMat & sample_pos = _matmgnt->samPos(DnC->tag);		//copied from s2m
+		vector<float> sample_pos_float(sample_pos.n()*sample_pos.m());
+		for (size_t i=0; i<sample_pos_float.size(); i++)
+			sample_pos_float[i]=*(sample_pos._data+i);
+
+//	   DnC->srcDim=samPos.n()*srcDOF;
+//	   DnC->samPosF=samPos._data;
+	   DnC->srcDim=sample_pos.n();
+	   DnC->samPosF=&sample_pos_float[0];
+	   DnC->srcDen=(float*)calloc(DnC->numTrgBox*DnC->srcDim,sizeof(float));
+
+//	   int dd=0;
+//	   int trgIndex = 0;
+//	   for(int i=0; i<ordVec.size(); i++) {
+//	 	 int gNodeIdx = ordVec[i];
+//	      DnC->trgVal[gNodeIdx] = NULL;
+//	 	 if(  _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //eValuator
+//	 		if(_let->terminal(gNodeIdx)) {
+//	 		  //L2T - local -> target
+//	 		  DblNumVec trgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+////	 #ifdef DS_ORG
+//	 			/* Center of the box */
+//	 			for (int j = 0; j < DnC->dim; j++)
+//	 				DnC->srcCtr[j+gNodeIdx*DnC->dim] = _let->center(gNodeIdx)(j);
+//
+//	 			/* Radius of the box */
+//	 			DnC->srcRad[gNodeIdx] = _let->radius(gNodeIdx);
+//
+//	 			/* Allocate memory for target potentials */
+//	   			DnC->trgVal[gNodeIdx] = (float *) calloc(trgExaVal_gNodeIdx.m(), sizeof(float));
+//
+//
+//	   			DblNumMat targets = evaTrgExaPos(gNodeIdx);
+//	   			DnC->trgBoxSize[gNodeIdx] = targets.n();
+//	   			for(int s = 0; s < DnC->trgBoxSize[gNodeIdx]; s++) {
+//	   			  for(int d = 0; d < DnC->dim; d++) {
+//	   			    DnC->trg_[(s*(DnC->dim))+d+trgIndex] = targets(d,s);
+////	   			  std::cout<<"trg: "<< DnC->trg_[(s*(DnC->dim))+d+trgIndex]<<endl;
+//	   			  }
+//	   			}
+//
+////	   			/* Target points are stored as x1 y1 z1 x2 y2 z2 ..... */
+////	 			vector<int>& curVecIdxs = _let->node(gNodeIdx).trgOwnVecIdxs();
+////	 	  		DnC->trgBoxSize[gNodeIdx] = curVecIdxs.size ();
+////	           		for(int t = 0; t < DnC->trgBoxSize[gNodeIdx]; t++) {
+////	 	     			for(d = 0; d < DnC->dim; d++){
+////	 	     				DnC->trg_[(t*DnC->dim)+d+trgIndex] = (trgExaPos(gNodeIdx)(d,t));
+////	 	     			}
+////	           		}
+//
+//
+//	           		for(int t = 0; t < DnC->srcDim; t++) {
+//	           			DnC->srcDen[gNodeIdx*DnC->srcDim+t]=evaTrgDwnEquDen(gNodeIdx)(t);
+////	           			std::cout<<"den "<<DnC->srcDen[gNodeIdx*DnC->srcDim+t]<<endl;
+//	           		}
+//
+//	          		trgIndex += (DnC->trgBoxSize[gNodeIdx] * DnC->dim);
+//	 //		  iC( DwnEqu2TrgChk_sgemv(_let->center(gNodeIdx), _let->radius(gNodeIdx), trgExaPos(gNodeIdx), trgDwnEquDen(gNodeIdx), trgExaVal_gNodeIdx) );
+//	 		}
+//	 	 }
+//	   }
+
+	 //////////Downward computation GPU call///////////
+//	 #ifdef DS_ORG
+//	 gpu_down(DnC);
+  }	//end if l2t if
+  int trgIndex = 0;
   for(size_t i=0; i<ordVec.size(); i++) {
 	 int gNodeIdx = ordVec[i];
-	 if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator	
+	 if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator
 		if(_let->depth(gNodeIdx)>=3) {
-		  int pargNodeIdx = _let->parent(gNodeIdx);	
+		  int pargNodeIdx = _let->parent(gNodeIdx);
 		  Index3 chdidx( _let->path2Node(gNodeIdx)-2 * _let->path2Node(pargNodeIdx) );
 		  //L2L
 		  DblNumVec evaTrgDwnChkVal_gNodeIdx(evaTrgDwnChkVal(gNodeIdx));
@@ -562,10 +652,101 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 		}
 		if(_let->terminal(gNodeIdx)) {
 		  //L2T
-		  DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+//		  DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+		  if (gpu_l2t)
+		  				  {
+//		  				    for (int j = 0; j < evaTrgExaVal_gNodeIdx.m(); j++) {
+////		  				    	std::cout<<DnC->trgVal[gNodeIdx][j]<<" ";
+//		  				    	evaTrgExaVal_gNodeIdx(j) += DnC->trgVal[gNodeIdx][j];
+//		  				    }
+	 		  //L2T - local -> target
+	 		  DblNumVec trgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+//	 #ifdef DS_ORG
+	 			/* Center of the box */
+	 			for (int j = 0; j < DnC->dim; j++)
+	 				DnC->srcCtr[j+gNodeIdx*DnC->dim] = _let->center(gNodeIdx)(j);
+
+	 			/* Radius of the box */
+	 			DnC->srcRad[gNodeIdx] = _let->radius(gNodeIdx);
+
+	 			/* Allocate memory for target potentials */
+	   			DnC->trgVal[gNodeIdx] = (float *) calloc(trgExaVal_gNodeIdx.m(), sizeof(float));
+
+
+	   			DblNumMat targets = evaTrgExaPos(gNodeIdx);
+	   			DnC->trgBoxSize[gNodeIdx] = targets.n();
+	   			for(int s = 0; s < DnC->trgBoxSize[gNodeIdx]; s++) {
+	   			  for(int d = 0; d < DnC->dim; d++) {
+	   			    DnC->trg_[(s*(DnC->dim))+d+trgIndex] = targets(d,s);
+//	   			  std::cout<<"trg: "<< DnC->trg_[(s*(DnC->dim))+d+trgIndex]<<endl;
+	   			  }
+	   			}
+
+//	   			/* Target points are stored as x1 y1 z1 x2 y2 z2 ..... */
+//	 			vector<int>& curVecIdxs = _let->node(gNodeIdx).trgOwnVecIdxs();
+//	 	  		DnC->trgBoxSize[gNodeIdx] = curVecIdxs.size ();
+//	           		for(int t = 0; t < DnC->trgBoxSize[gNodeIdx]; t++) {
+//	 	     			for(d = 0; d < DnC->dim; d++){
+//	 	     				DnC->trg_[(t*DnC->dim)+d+trgIndex] = (trgExaPos(gNodeIdx)(d,t));
+//	 	     			}
+//	           		}
+
+
+	           		for(int t = 0; t < DnC->srcDim; t++) {
+	           			DnC->srcDen[gNodeIdx*DnC->srcDim+t]=evaTrgDwnEquDen(gNodeIdx)(t);
+//	           			std::cout<<"den "<<DnC->srcDen[gNodeIdx*DnC->srcDim+t]<<endl;
+	           		}
+
+	          		trgIndex += (DnC->trgBoxSize[gNodeIdx] * DnC->dim);
+		  				  }
+		  else {
+			  DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
 		  pC( DwnEqu2TrgChk_dgemv(_let->center(gNodeIdx), _let->radius(gNodeIdx), evaTrgExaPos(gNodeIdx), evaTrgDwnEquDen(gNodeIdx), evaTrgExaVal_gNodeIdx) );
+			}
 		}
 	 }
+  }
+  if(gpu_l2t) {
+	  gpu_down(DnC);
+
+  for(size_t i=0; i<ordVec.size(); i++) {
+	 int gNodeIdx = ordVec[i];
+	 if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator
+		 if(_let->terminal(gNodeIdx)) {
+			 DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+			 for (int j = 0; j < evaTrgExaVal_gNodeIdx.m(); j++) {
+//				std::cout<<DnC->trgVal[gNodeIdx][j]<<" ";
+				evaTrgExaVal_gNodeIdx(j) += DnC->trgVal[gNodeIdx][j];
+			}
+
+	 }
+	 }
+  }
+  }
+//  for(size_t i=0; i<ordVec.size(); i++) {
+//	 int gNodeIdx = ordVec[i];
+//	 if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) { //evaluator
+//		 if(_let->terminal(gNodeIdx)) {
+//			 DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
+//			 for (int j = 0; j < evaTrgExaVal_gNodeIdx.m(); j++) {
+//				std::cout<<evaTrgExaVal_gNodeIdx(j)<<" ";
+////				evaTrgExaVal_gNodeIdx(j) += DnC->trgVal[gNodeIdx][j];
+//			}
+//			 free(DnC->trgVal[gNodeIdx]);
+//	 }
+//	 }
+//	 std::cout<<endl;
+//  }
+  if(gpu_l2t) {
+	  free (DnC->trg_);
+	  free (DnC->trgBoxSize);
+	  free (DnC->srcCtr);
+	  free (DnC->srcRad);
+//	  for (int i = 0; i < ordVec.size(); i++)
+//		free (DnC->trgVal[ordVec[i]]);
+	  free (DnC->trgVal);
+	  free(DnC->srcDen);
+	  free (DnC);
   }
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
@@ -575,7 +756,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   PetscLogFlops(papi_flpops2-papi_flpops);
 #endif
   PetscLogEventEnd(EvalCombine_event,0,0,0,0);
-  
+
   PetscLogEventBegin(EvalFinalize_event,0,0,0,0);
   //8. save tdtExaVal
   _let->procLclRan(_trgPos, procLclStart, procLclEnd);
@@ -597,7 +778,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   }
   pC( VecRestoreArray(trgVal, &varr) );
   PetscLogEventEnd(EvalFinalize_event,0,0,0,0);
-  
+
   // I don't understand the role of barrier below. Let's remove it and see if things break.
   // pC( MPI_Barrier(mpiComm()) );  //check vLstInCnt, vLstOthCnt
   return(0);

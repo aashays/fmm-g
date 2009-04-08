@@ -1,14 +1,14 @@
--gpu_s2m
--gpu_ulist
+%-gpu_s2m
+%-gpu_ulist
 -repartition  uniformOct % weighted_leaves %blockPart %
 
 -distribution uniform %ellipseUniformAngles %
 -isogranular
--numsrc 200000            %number of source points
+-numsrc 100000            %number of source points
 -preload_numsrc 100    %number of source points WHEN PRELOADING
 
 % -trgs_and_srcs_coinc
--numtrg 200000         %number of target points (where the potential needs to be evaluated)
+-numtrg 100000         %number of target points (where the potential needs to be evaluated)
 -preload_numtrg 100  %number of target points (where the potential needs to be evaluated) WHEN PRELOADING
 -numchk 100
 % -preload_numchk 1

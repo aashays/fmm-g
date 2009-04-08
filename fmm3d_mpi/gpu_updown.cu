@@ -4,7 +4,7 @@
 #define PI_4I 0.079577471F
 //#define PI3_4I 0.238732413F
 #include <cutil.h>
-#include <cutil_inline.h>
+//#include <cutil_inline.h>
 #include "../p3d/upComp.h"
 #include "../p3d/dnComp.h"
 #include "../p3d/point3d.h"//dont remove this
@@ -419,35 +419,35 @@ void gpu_up(upComp_t *UpC) {
 
 	make_ds_up(srcBox,UpC);
 
-	cudaMalloc((void**)&src_dp,sizeof(float)*UpC->numSrc * (UpC->dim+1)); CE(C_E)
-	cudaMalloc((void**)&trgCtr_dp,sizeof(float)*UpC->numSrcBox*3); CE(C_E)
-	cudaMalloc((void**)&trgRad_dp,sizeof(float)*UpC->numSrcBox); CE(C_E)
-	cudaMalloc((void**)&srcBox_dp,sizeof(int)*UpC->numSrcBox*2); CE(C_E)
-	cudaMalloc((void**)&trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox); CE(C_E)
+	cudaMalloc((void**)&src_dp,sizeof(float)*UpC->numSrc * (UpC->dim+1));
+	cudaMalloc((void**)&trgCtr_dp,sizeof(float)*UpC->numSrcBox*3);
+	cudaMalloc((void**)&trgRad_dp,sizeof(float)*UpC->numSrcBox);
+	cudaMalloc((void**)&srcBox_dp,sizeof(int)*UpC->numSrcBox*2);
+	cudaMalloc((void**)&trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox);
 
 
-	cudaMemcpy((void*)src_dp,UpC->src_,sizeof(float)*UpC->numSrc * (UpC->dim+1),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)trgCtr_dp,UpC->trgCtr,sizeof(float)*UpC->numSrcBox*3,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)trgRad_dp,UpC->trgRad,sizeof(float)*UpC->numSrcBox,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)srcBox_dp,srcBox,sizeof(int)*UpC->numSrcBox*2,cudaMemcpyHostToDevice); CE(C_E)
+	cudaMemcpy((void*)src_dp,UpC->src_,sizeof(float)*UpC->numSrc * (UpC->dim+1),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)trgCtr_dp,UpC->trgCtr,sizeof(float)*UpC->numSrcBox*3,cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)trgRad_dp,UpC->trgRad,sizeof(float)*UpC->numSrcBox,cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)srcBox_dp,srcBox,sizeof(int)*UpC->numSrcBox*2,cudaMemcpyHostToDevice);
 
-	cudaMemcpyToSymbol(sampos,UpC->samPosF/*samp*/,sizeof(float)*UpC->trgDim*3); CE(C_E)
+	cudaMemcpyToSymbol(sampos,UpC->samPosF/*samp*/,sizeof(float)*UpC->trgDim*3);
 	int GRID_WIDTH=(int)ceil((float)UpC->numSrcBox/65535.0F);
 	int GRID_HEIGHT=(int)ceil((float)UpC->numSrcBox/(float)GRID_WIDTH);
 	dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);
 //	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
 	if(UpC->trgDim==296) {
-		up_kernel<<<GridDim,BLOCK_HEIGHT>>>(src_dp,trgVal_dp,trgCtr_dp,trgRad_dp,srcBox_dp,UpC->numSrcBox); CE(C_E)
+		up_kernel<<<GridDim,BLOCK_HEIGHT>>>(src_dp,trgVal_dp,trgCtr_dp,trgRad_dp,srcBox_dp,UpC->numSrcBox);
 	}
 	else if(UpC->trgDim==152) {
-		up_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(src_dp,trgVal_dp,trgCtr_dp,trgRad_dp,srcBox_dp,UpC->numSrcBox); CE(C_E)
+		up_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(src_dp,trgVal_dp,trgCtr_dp,trgRad_dp,srcBox_dp,UpC->numSrcBox);
 	}
 	else
 		cout<<"Upward computations not implemented for this accuracy"<<endl;	//Exit the process?
 		//also, a generic call can be put here
 
 
-	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox,cudaMemcpyDeviceToHost); CE(C_E)
+	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox,cudaMemcpyDeviceToHost);
 //	CUT_SAFE_CALL(cutStopTimer(timer));
 //	ms = cutGetTimerValue(timer);
 //	cout<<"Up kernel: "<<ms<<"ms"<<endl;
@@ -482,8 +482,10 @@ void unmake_ds_down(float *trgValE,dnComp_t *DnC) {
 	int t=0;
 	for(int i=0;i<DnC->numTrgBox;i++) {
 		for(int j=0;j<DnC->trgBoxSize[i];j++) {
-			if(DnC->trgVal[i]!=NULL)
+			if(DnC->trgVal[i]!=NULL) {
 				DnC->trgVal[i][j]=trgValE[t++];
+//				cout<<DnC->trgVal[i][j]<<endl;
+			}
 		}
 	}
 }
@@ -659,46 +661,40 @@ void gpu_down(dnComp_t *DnC) {
 	if(trgValE==NULL) cout<<"segfault imminent"<<endl;
 	int numAugTrg=getnumAugTrg(DnC);
 	int trgBox[3*numAugTrg];
-//	cout<<"srcdim is: "<<DnC->srcDim<<endl;
 	make_ds_down(trgBox,DnC);
 
-//	cout<<"srcctr: "<<endl;
-//	for(int i=0;i<3*DnC->numTrgBox;i++) {
-//		cout<<DnC->srcCtr[i]<<endl;
-//	}
 
-	cudaMalloc((void**)&trg_dp,sizeof(float)*(DnC->numTrg+BLOCK_HEIGHT) * (DnC->dim)); CE(C_E)
-	cudaMalloc((void**)&srcCtr_dp,sizeof(float)*DnC->numTrgBox*3); CE(C_E)
-	cudaMalloc((void**)&srcRad_dp,sizeof(float)*DnC->numTrgBox); CE(C_E)
-	cudaMalloc((void**)&trgBox_dp,sizeof(int)*numAugTrg*3); CE(C_E)
-	cudaMalloc((void**)&trgVal_dp,sizeof(float)*DnC->numTrg); CE(C_E)
-	cudaMalloc((void**)&srcDen_dp,sizeof(float)*DnC->numTrgBox*DnC->srcDim); CE(C_E)
+	cudaMalloc((void**)&trg_dp,sizeof(float)*(DnC->numTrg+BLOCK_HEIGHT) * (DnC->dim));
+	cudaMalloc((void**)&srcCtr_dp,sizeof(float)*DnC->numTrgBox*3);
+	cudaMalloc((void**)&srcRad_dp,sizeof(float)*DnC->numTrgBox);
+	cudaMalloc((void**)&trgBox_dp,sizeof(int)*numAugTrg*3);
+	cudaMalloc((void**)&trgVal_dp,sizeof(float)*DnC->numTrg);
+	cudaMalloc((void**)&srcDen_dp,sizeof(float)*DnC->numTrgBox*DnC->srcDim);
 
-	cudaMemcpy((void*)trg_dp,DnC->trg_,sizeof(float)*DnC->numTrg * (DnC->dim),cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)srcCtr_dp,DnC->srcCtr,sizeof(float)*DnC->numTrgBox*3,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)srcRad_dp,DnC->srcRad,sizeof(float)*DnC->numTrgBox,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)trgBox_dp,trgBox,sizeof(int)*numAugTrg*3,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpy((void*)srcDen_dp,DnC->srcDen,sizeof(float)*DnC->numTrgBox*DnC->srcDim,cudaMemcpyHostToDevice); CE(C_E)
-	cudaMemcpyToSymbol(samposDn,DnC->samPosF,sizeof(float)*DnC->srcDim*3); CE(C_E)
+	cudaMemcpy((void*)trg_dp,DnC->trg_,sizeof(float)*DnC->numTrg * (DnC->dim),cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)srcCtr_dp,DnC->srcCtr,sizeof(float)*DnC->numTrgBox*3,cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)srcRad_dp,DnC->srcRad,sizeof(float)*DnC->numTrgBox,cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)trgBox_dp,trgBox,sizeof(int)*numAugTrg*3,cudaMemcpyHostToDevice);
+	cudaMemcpy((void*)srcDen_dp,DnC->srcDen,sizeof(float)*DnC->numTrgBox*DnC->srcDim,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(samposDn,DnC->samPosF,sizeof(float)*DnC->srcDim*3);
 //	int GRID_HEIGHT=UpC->numSrcBox;
 	int GRID_WIDTH=(int)ceil((float)numAugTrg/65535.0F);
 	int GRID_HEIGHT=(int)ceil((float)numAugTrg/(float)GRID_WIDTH);
 	dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);
 //	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
 	if(DnC->srcDim==152) {
-		dn_kernel<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg); CE(C_E)
+		dn_kernel<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
 	}
 	else if(DnC->srcDim==56) {
-		dn_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg); CE(C_E)
+		dn_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
 	}
 	else
 		cout<<"Downward computations not implemented for this accuracy"<<endl;	//Exit the process?
 		//also, a generic call can be put here
 
 
-	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*DnC->numTrg,cudaMemcpyDeviceToHost); CE(C_E)
+	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*DnC->numTrg,cudaMemcpyDeviceToHost);
 	unmake_ds_down(trgValE,DnC);	//FIXME: copies the gpu output into the 2d array used by the interface... make the interface use a 1d array
-
 
 	cudaFree(trg_dp);
 	cudaFree(srcCtr_dp);
