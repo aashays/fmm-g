@@ -695,7 +695,7 @@ void gpu_down(dnComp_t *DnC) {
 
 	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*DnC->numTrg,cudaMemcpyDeviceToHost);
 	unmake_ds_down(trgValE,DnC);	//FIXME: copies the gpu output into the 2d array used by the interface... make the interface use a 1d array
-
+	free(trgValE);
 	cudaFree(trg_dp);
 	cudaFree(srcCtr_dp);
 	cudaFree(srcRad_dp);
