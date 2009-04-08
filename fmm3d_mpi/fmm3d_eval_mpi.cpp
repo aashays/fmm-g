@@ -548,6 +548,8 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   dnComp_t *DnC;
   PetscTruth gpu_l2t;
   PetscOptionsHasName(0,"-gpu_l2t",&gpu_l2t);
+const DblNumMat & sample_pos = _matmgnt->samPos(DE);		//copied from s2m
+vector<float> sample_pos_float(sample_pos.n()*sample_pos.m());
   if (gpu_l2t) {
 
 //	  dnComp_t *DnC;
@@ -568,8 +570,8 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	   DnC->srcRad = (float *) calloc (DnC->numTrgBox, sizeof(float));
 //	   samPos = this->matmgnt()->samPos(DnC->tag);
 
-		const DblNumMat & sample_pos = _matmgnt->samPos(DnC->tag);		//copied from s2m
-		vector<float> sample_pos_float(sample_pos.n()*sample_pos.m());
+//		const DblNumMat & sample_pos = _matmgnt->samPos(DnC->tag);		//copied from s2m
+//		vector<float> sample_pos_float(sample_pos.n()*sample_pos.m());
 		for (size_t i=0; i<sample_pos_float.size(); i++)
 			sample_pos_float[i]=*(sample_pos._data+i);
 
@@ -718,6 +720,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 //				std::cout<<DnC->trgVal[gNodeIdx][j]<<" ";
 				evaTrgExaVal_gNodeIdx(j) += DnC->trgVal[gNodeIdx][j];
 			}
+			 free(DnC->trgVal[gNodeIdx]);
 
 	 }
 	 }
@@ -729,13 +732,12 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 //		 if(_let->terminal(gNodeIdx)) {
 //			 DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
 //			 for (int j = 0; j < evaTrgExaVal_gNodeIdx.m(); j++) {
-//				std::cout<<evaTrgExaVal_gNodeIdx(j)<<" ";
+//				std::cout<<evaTrgExaVal_gNodeIdx(j)<<endl;
 ////				evaTrgExaVal_gNodeIdx(j) += DnC->trgVal[gNodeIdx][j];
 //			}
-//			 free(DnC->trgVal[gNodeIdx]);
 //	 }
 //	 }
-//	 std::cout<<endl;
+////	 std::cout<<endl;
 //  }
   if(gpu_l2t) {
 	  free (DnC->trg_);
