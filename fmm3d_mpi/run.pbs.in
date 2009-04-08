@@ -37,12 +37,12 @@
 # filename for standard output (default = <job_name>.o<job_id>)
 # at end of job, it is in directory from which qsub was executed
 # remove extra ## from the line below if you want to name your own file
-###PBS -o options_ilya_gpu.out
+#PBS -o @OUTTAG@.out
 #
 # filename for standard error (default = <job_name>.e<job_id>)
 # at end of job, it is in directory from which qsub was executed
 # remove extra ## from the line below if you want to name your own file
-###PBS -e options_ilya_gpu.err
+#PBS -e @OUTTAG@.err
 #
 # End of embedded QSUB options
 
@@ -56,12 +56,14 @@ MV2_SRQ_SIZE=4000
 # mpirun  -machinefile ${PBS_NODEFILE} -np ${NP} ./mpihello
 #   To get ranks *packed* into nodes, use this syntax.
 
+date
 echo "Starting in: `pwd`"
 finger
 top -b -n 1
 mvapich2-start-mpd
 mpirun -machinefile ${PBS_NODEFILE} -np ${NP} ./tt0 -options_file @OPTS@
 mpdallexit
+date
 exit
 
 # eof

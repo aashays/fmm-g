@@ -44,6 +44,9 @@ extern "C" {
   
   /** Copies from device memory to host memory */
   void gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n);
+
+  /** Checks that a pointer is non-NULL, and aborts with an error if it is. */
+  void gpu_check_pointer (const void* p, const char* filename, size_t line);
   
   /** Performs U-list computation */
   void dense_inter_gpu (point3d_t*);
@@ -61,6 +64,9 @@ extern "C" {
   /** No op */
 #  define GPU_CE
 #endif
+
+  /** Checks for a non-NULL pointer */
+#  define GPU_CP(p)  gpu_check_pointer ((p), __FILE__, __LINE__)
 
 #if defined(__cplusplus)
 } // extern "C"

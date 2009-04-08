@@ -48,6 +48,16 @@ gpu_msg__stdout (const char* msg, const char* filename, size_t lineno)
   fprintf (fp, "===> [%s:%lu--p%d(%s)] %s\n", filename, lineno, rank, procname, msg);
 }
 
+void
+gpu_check_pointer (const void* p, const char* fn, size_t l)
+{
+  if (!p) {
+    gpu_msg__stdout ("NULL pointer", fn, l);
+    MPI_Abort (MPI_COMM_WORLD, -1);
+    assert (p);
+  }
+}
+
 size_t
 gpu_count (void)
 {
