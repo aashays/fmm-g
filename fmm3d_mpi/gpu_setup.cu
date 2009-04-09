@@ -357,6 +357,9 @@ __global__ void ulist_kernel(float *tx_dp,float *ty_dp,float *tz_dp,float *trgVa
       dX_reg += dY_reg+dZ_reg;
 
       dX_reg = rsqrtf(dX_reg);
+        dX_reg = dX_reg + (dX_reg-dX_reg);
+        dX_reg = fmaxf(dX_reg,0.0F);
+
       tv_reg+=dX_reg*s_sh[src].w;
   #else
       dX_reg=sx_sh[src]-tx_reg;
