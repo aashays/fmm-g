@@ -86,6 +86,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.x+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[1].x;
@@ -99,6 +102,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.y+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[2].x;
@@ -112,6 +118,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.z+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[3].x;
@@ -125,6 +134,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.w+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[4].x;
@@ -138,6 +150,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tve+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 			}
@@ -158,6 +173,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.x+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[1].x;
@@ -171,6 +189,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.y+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[2].x;
@@ -184,6 +205,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.z+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[3].x;
@@ -197,6 +221,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.w+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[4].x;
@@ -210,6 +237,9 @@ __global__ void up_kernel(float *src_dp,float *trgVal_dp,float *trgCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tve+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 		}	//end residual loop
@@ -288,6 +318,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.x+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[1].x;
@@ -301,6 +334,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tv.y+=dX_reg*s_sh[s].w;
 				///////////////////////////////
 				dX_reg=s_sh[s].x-trg[2].x;
@@ -314,6 +350,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 				dX_reg += dY_reg+dZ_reg;
 
 				dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 				tve+=dX_reg*s_sh[s].w;
 			}
 		}	//end num chunk loop
@@ -332,6 +371,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.x+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[1].x;
@@ -345,6 +387,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tv.y+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 			dX_reg=s_sh[s].x-trg[2].x;
@@ -358,6 +403,9 @@ __global__ void up_kernel_4(float *src_dp,float *trgVal_dp,float *trgCtr_dp,floa
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 			tve+=dX_reg*s_sh[s].w;
 			///////////////////////////////
 		}	//end residual loop
@@ -418,23 +466,21 @@ void gpu_up(upComp_t *UpC) {
 
 	make_ds_up(srcBox,UpC);
 
-	cudaMalloc((void**)&src_dp,sizeof(float)*(UpC->numSrc + BLOCK_HEIGHT) * (UpC->dim+1)); GPU_CE;
-	cudaMalloc((void**)&trgCtr_dp,sizeof(float)*UpC->numSrcBox*3); GPU_CE;
-	cudaMalloc((void**)&trgRad_dp,sizeof(float)*UpC->numSrcBox); GPU_CE;
-	cudaMalloc((void**)&srcBox_dp,sizeof(int)*UpC->numSrcBox*2); GPU_CE;
-	cudaMalloc((void**)&trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox); GPU_CE;
+	src_dp = gpu_calloc_float ((UpC->numSrc + BLOCK_HEIGHT) * (UpC->dim+1));
+	trgCtr_dp = gpu_calloc_float (UpC->numSrcBox*3);
+	trgRad_dp = gpu_calloc_float (UpC->numSrcBox);
+	srcBox_dp = gpu_calloc_int (UpC->numSrcBox*2);
+	trgVal_dp = gpu_calloc_float (UpC->trgDim*UpC->numSrcBox);
 
-
-	cudaMemcpy((void*)src_dp,UpC->src_,sizeof(float)*UpC->numSrc * (UpC->dim+1),cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)trgCtr_dp,UpC->trgCtr,sizeof(float)*UpC->numSrcBox*3,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)trgRad_dp,UpC->trgRad,sizeof(float)*UpC->numSrcBox,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)srcBox_dp,srcBox,sizeof(int)*UpC->numSrcBox*2,cudaMemcpyHostToDevice); GPU_CE;
+	gpu_copy_cpu2gpu_float (src_dp, UpC->src_, UpC->numSrc * (UpC->dim+1));
+	gpu_copy_cpu2gpu_float (trgCtr_dp, UpC->trgCtr, UpC->numSrcBox*3);
+	gpu_copy_cpu2gpu_float (trgRad_dp, UpC->trgRad, UpC->numSrcBox);
+	gpu_copy_cpu2gpu_int (srcBox_dp, srcBox, UpC->numSrcBox*2);
 
 	cudaMemcpyToSymbol(sampos,UpC->samPosF/*samp*/,sizeof(float)*UpC->trgDim*3); GPU_CE;
 	int GRID_WIDTH=(int)ceil((float)UpC->numSrcBox/65535.0F);
 	int GRID_HEIGHT=(int)ceil((float)UpC->numSrcBox/(float)GRID_WIDTH);
 	dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);
-	fprintf (stderr, "Grid: %d x %d\n", GRID_WIDTH, GRID_HEIGHT);
 //	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
 	if(UpC->trgDim==296) {
 		up_kernel<<<GridDim,BLOCK_HEIGHT>>>(src_dp,trgVal_dp,trgCtr_dp,trgRad_dp,srcBox_dp,UpC->numSrcBox);
@@ -447,7 +493,7 @@ void gpu_up(upComp_t *UpC) {
 		//also, a generic call can be put here
 	GPU_CE;
 
-	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*UpC->trgDim*UpC->numSrcBox,cudaMemcpyDeviceToHost); GPU_CE;
+	gpu_copy_gpu2cpu_float (trgValE, trgVal_dp, UpC->trgDim*UpC->numSrcBox);
 //	CUT_SAFE_CALL(cutStopTimer(timer));
 //	ms = cutGetTimerValue(timer);
 //	cout<<"Up kernel: "<<ms<<"ms"<<endl;
@@ -528,6 +574,9 @@ __global__ void dn_kernel(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 
 			tv_reg+=dX_reg*s_sh[src].w;
 		}
@@ -551,6 +600,9 @@ __global__ void dn_kernel(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 
 			tv_reg+=dX_reg*s_sh[src].w;
 		}
@@ -576,6 +628,9 @@ __global__ void dn_kernel(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,float 
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 
 			tv_reg+=dX_reg*s_sh[src].w;
 		}
@@ -629,6 +684,9 @@ __global__ void dn_kernel_4(float *trg_dp,float *trgVal_dp,float *srcCtr_dp,floa
 			dX_reg += dY_reg+dZ_reg;
 
 			dX_reg = rsqrtf(dX_reg);
+//@@
+dX_reg = dX_reg + (dX_reg-dX_reg);
+dX_reg = fmaxf(dX_reg,0.0F);
 
 			tv_reg+=dX_reg*s_sh[src].w;
 		}
@@ -665,29 +723,29 @@ void gpu_down(dnComp_t *DnC) {
 	make_ds_down(trgBox,DnC);
 
 
-	cudaMalloc((void**)&trg_dp,sizeof(float)*(DnC->numTrg+BLOCK_HEIGHT) * (DnC->dim)); GPU_CE;
-	cudaMalloc((void**)&srcCtr_dp,sizeof(float)*DnC->numTrgBox*3); GPU_CE;
-	cudaMalloc((void**)&srcRad_dp,sizeof(float)*DnC->numTrgBox); GPU_CE;
-	cudaMalloc((void**)&trgBox_dp,sizeof(int)*numAugTrg*3); GPU_CE;
-	cudaMalloc((void**)&trgVal_dp,sizeof(float)*DnC->numTrg); GPU_CE;
-	cudaMalloc((void**)&srcDen_dp,sizeof(float)*DnC->numTrgBox*DnC->srcDim); GPU_CE;
+	trg_dp = gpu_calloc_float ((DnC->numTrg+BLOCK_HEIGHT) * (DnC->dim));
+	srcCtr_dp = gpu_calloc_float (DnC->numTrgBox*3);
+	srcRad_dp = gpu_calloc_float (DnC->numTrgBox);
+	trgBox_dp = gpu_calloc_int (numAugTrg*3);
+	trgVal_dp = gpu_calloc_float (DnC->numTrg);
+	srcDen_dp = gpu_calloc_float (DnC->numTrgBox*DnC->srcDim);
 
-	cudaMemcpy((void*)trg_dp,DnC->trg_,sizeof(float)*DnC->numTrg * (DnC->dim),cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)srcCtr_dp,DnC->srcCtr,sizeof(float)*DnC->numTrgBox*3,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)srcRad_dp,DnC->srcRad,sizeof(float)*DnC->numTrgBox,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)trgBox_dp,trgBox,sizeof(int)*numAugTrg*3,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpy((void*)srcDen_dp,DnC->srcDen,sizeof(float)*DnC->numTrgBox*DnC->srcDim,cudaMemcpyHostToDevice); GPU_CE;
-	cudaMemcpyToSymbol(samposDn,DnC->samPosF,sizeof(float)*DnC->srcDim*3); GPU_CE;
+	gpu_copy_cpu2gpu_float (trg_dp, DnC->trg_, DnC->numTrg * DnC->dim);
+	gpu_copy_cpu2gpu_float (srcCtr_dp, DnC->srcCtr, DnC->numTrgBox*3);
+	gpu_copy_cpu2gpu_float (srcRad_dp, DnC->srcRad, DnC->numTrgBox);
+	gpu_copy_cpu2gpu_int (trgBox_dp, trgBox, numAugTrg*3);
+	gpu_copy_cpu2gpu_float (srcDen_dp, DnC->srcDen, DnC->numTrgBox*DnC->srcDim);
+	cudaMemcpyToSymbol(samposDn, DnC->samPosF, sizeof(float)*DnC->srcDim*3); GPU_CE;
 //	int GRID_HEIGHT=UpC->numSrcBox;
 	int GRID_WIDTH=(int)ceil((float)numAugTrg/65535.0F);
 	int GRID_HEIGHT=(int)ceil((float)numAugTrg/(float)GRID_WIDTH);
 	dim3 GridDim(GRID_HEIGHT, GRID_WIDTH);
 //	cout<<"Width: "<<GRID_WIDTH<<" HEIGHT: "<<GRID_HEIGHT<<endl;
 	if(DnC->srcDim==152) {
-		dn_kernel<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
+	  dn_kernel<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
 	}
 	else if(DnC->srcDim==56) {
-		dn_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
+	  dn_kernel_4<<<GridDim,BLOCK_HEIGHT>>>(trg_dp,trgVal_dp,srcCtr_dp,srcRad_dp,trgBox_dp,srcDen_dp,numAugTrg);
 	}
 	else
 	  GPU_MSG ("Downward computations not implemented for this accuracy");	//Exit the process?
@@ -695,7 +753,7 @@ void gpu_down(dnComp_t *DnC) {
 	GPU_CE;
 
 
-	cudaMemcpy(trgValE,trgVal_dp,sizeof(float)*DnC->numTrg,cudaMemcpyDeviceToHost); GPU_CE;
+	gpu_copy_gpu2cpu_float (trgValE, trgVal_dp, DnC->numTrg);
 	unmake_ds_down(trgValE,DnC);	//FIXME: copies the gpu output into the 2d array used by the interface... make the interface use a 1d array
 	free(trgValE);
 	cudaFree(trg_dp); GPU_CE;
