@@ -1,6 +1,5 @@
 #include <mpi.h>
 
-#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <cmath>
@@ -13,8 +12,28 @@
 #include "../p3d/point3d.h"
 #include "gpu_setup.h"
 
+#define MPI_ASSERT(c)  mpi_assert__ (((long)c), #c, __FILE__, __LINE__)
+
 #define PI_4I 0.079577471F
 //#define PI_4I 1.0F
+
+static
+void
+mpi_assert__ (long cond, const char* str_cond, const char* file, size_t line)
+{
+  if (!cond) {
+    int rank;
+    char procname[MPI_MAX_PROCESSOR_NAME+1];
+    int procnamelen;
+    memset (procname, 0, sizeof (procname));
+    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+    MPI_Get_processor_name (procname, &procnamelen);
+    fprintf (stderr, "*** [%s:%lu--p%d(%s)] ASSERTION FAILURE: %s ***\n",
+	     file, (unsigned long)line, rank, procname, str_cond);
+    fflush (stderr);
+    MPI_Abort (MPI_COMM_WORLD, 1);
+  }
+}
 
 #if defined (GPU_CERR)
 void
@@ -54,7 +73,7 @@ gpu_check_pointer (const void* p, const char* fn, size_t l)
   if (!p) {
     gpu_msg__stdout ("NULL pointer", fn, l);
     MPI_Abort (MPI_COMM_WORLD, -1);
-    assert (p);
+    MPI_ASSERT (p);
   }
 }
 
@@ -76,7 +95,7 @@ void
 gpu_dumpinfo (size_t dev_id)
 {
   cudaDeviceProp p;
-  assert (dev_id < gpu_count ());
+  MPI_ASSERT (dev_id < gpu_count ());
   CUDA_SAFE_CALL(cudaGetDeviceProperties(&p, (int)dev_id)); GPU_CE;
   fprintf (stderr, "==> Device %lu: \"%s\"\n", (unsigned long)dev_id, p.name);
   fprintf (stderr, " Major revision number: %d\n", p.major);
@@ -116,16 +135,18 @@ static
 void *
 gpu_calloc_ (size_t n)
 {
-  void* p;
-  cudaMalloc(&p, n); GPU_CE;
-  if (!p) {
-    int mpirank;
-    MPI_Comm_rank (MPI_COMM_WORLD, &mpirank);
-    fprintf (stderr, "[%s:%lu::p%d] Can't allocate %lu bytes!\n",
-	     __FILE__, __LINE__, mpirank, (unsigned long)n);
+  void* p = NULL;
+  if (n) {
+    cudaMalloc(&p, n); GPU_CE;
+    if (!p) {
+      int mpirank;
+      MPI_Comm_rank (MPI_COMM_WORLD, &mpirank);
+      fprintf (stderr, "[%s:%lu::p%d] Can't allocate %lu bytes!\n",
+	       __FILE__, __LINE__, mpirank, (unsigned long)n);
+    }
+    MPI_ASSERT (p);
+    cudaMemset (p, 0, n); GPU_CE;
   }
-  assert (p);
-  cudaMemset (p, 0, n); GPU_CE;
   return p;
 }
 
@@ -159,8 +180,10 @@ gpu_calloc_int (size_t n)
 void
 gpu_copy_cpu2gpu_float (float* d, const float* s, size_t n)
 {
-  cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyHostToDevice);
-  GPU_CE;
+  if (n) {
+    cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyHostToDevice);
+    GPU_CE;
+  }
 }
 
 void
@@ -175,8 +198,10 @@ gpu_copy_cpu2gpu_int (int* d, const int* s, size_t n)
 void
 gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n)
 {
-  cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyDeviceToHost);
-  GPU_CE;
+  if (n) {
+    cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyDeviceToHost);
+    GPU_CE;
+  }
 }
 
 ////////////////////////////////////////BEGIN KERNEL///////////////////////////////////////////////
@@ -418,10 +443,10 @@ void make_ds(int **tbdsf, int **tbdsr, int **cs, int **cp, point3d_t* P,int *num
 //  cout<<"Split "<<P->numTrgBox<<" targets boxes into "<<*numAugTrg<<endl;
 //  cout<<"Total source boxes: "<<*numSrcBoxTot<<endl;
 
-  *tbdsf=(int*)malloc(sizeof(int)*2*P->numTrgBox); assert (*tbdsf || !P->numTrgBox);
-  *tbdsr=(int*)malloc(sizeof(int)*3**numAugTrg); assert (*tbdsr || !numAugTrg);
-  *cs=(int*)malloc(sizeof(int)**numSrcBoxTot); assert (*cs || !numSrcBoxTot);
-  *cp=(int*)malloc(sizeof(int)**numSrcBoxTot); assert (*cp || !numSrcBoxTot);
+  *tbdsf=(int*)malloc(sizeof(int)*2*P->numTrgBox); MPI_ASSERT (*tbdsf || !P->numTrgBox);
+  *tbdsr=(int*)malloc(sizeof(int)*3**numAugTrg); MPI_ASSERT (*tbdsr || !numAugTrg);
+  *cs=(int*)malloc(sizeof(int)**numSrcBoxTot); MPI_ASSERT (*cs || !numSrcBoxTot);
+  *cp=(int*)malloc(sizeof(int)**numSrcBoxTot); MPI_ASSERT (*cp || !numSrcBoxTot);
 
   int cc=0;
   int tt=0;
