@@ -50,6 +50,12 @@ cd ${HOME}/projects/fmm/kifmm3d-gpu/fmm-g.git/fmm3d_mpi
 NP=`wc -l ${PBS_NODEFILE} | cut -d'/' -f1`
 MV2_SRQ_SIZE=4000
 
+export LOG_DIR=@LOGDIR@
+
+if ! test -d "${LOG_DIR}" ; then
+  mkdir -p "${LOG_DIR}"
+fi
+
 # mpirun -np ${NP} ./mpihello
 #   This mpirun syntax above will assign ranks to nodes in round-robin fashion.
 #
@@ -60,6 +66,7 @@ date
 echo "Starting in: `pwd`"
 finger
 top -b -n 1
+cat @OPTS@
 mvapich2-start-mpd
 mpirun -machinefile ${PBS_NODEFILE} -np ${NP} ./tt0 -options_file @OPTS@
 mpdallexit

@@ -1,6 +1,6 @@
 #!/usr/local/bin/bash
 
-WALLTIME=${WALLTIME-0:05:00}
+WALLTIME=${WALLTIME-0:30:00}
 
 OPTS=$1 ; shift
 NP=$1 ; shift
@@ -32,6 +32,7 @@ cat run.pbs.in \
   | sed "s,@PPN@,${PPN},g" \
   | sed "s,@OUTTAG@,${OUTTAG},g" \
   | sed "s,@OPTS@,${OPTS},g" \
+  | sed "s,@LOGDIR@,${OUTTAG}--LOGS,g" \
   > "${RUNSCRIPT}"
 
 echo \

@@ -453,6 +453,7 @@ void make_ds_up(int *srcBox,upComp_t *UpC) {	//TODO
 
 void gpu_up(upComp_t *UpC) {
   GPU_MSG ("Upward computation");
+  if (!UpC || !UpC->numSrcBox) { GPU_MSG ("==> No source boxes; skipping..."); return; }
   //	cudaSetDevice(0);
 //	unsigned int timer;
 //	float ms;
@@ -707,9 +708,8 @@ int getnumAugTrg(dnComp_t *DnC) {
 
 void gpu_down(dnComp_t *DnC) {
   GPU_MSG ("Downward (combine) pass");
-#ifdef CERR
-	cudaError_t C_E;
-#endif
+	int numAugTrg = getnumAugTrg(DnC);
+	if (!numAugTrg) { GPU_MSG ("==> numAugTrg == 0; skipping..."); return; }
 	//	cudaSetDevice(0);
 //	DnC->numTrgBox=75;
 	float *trg_dp,*trgVal_dp,*srcCtr_dp,*srcRad_dp,*srcDen_dp;
@@ -718,7 +718,6 @@ void gpu_down(dnComp_t *DnC) {
 //	float trgValE[DnC->numTrg];
 	float *trgValE=(float*)calloc(DnC->numTrg,sizeof(float));
 	if(trgValE==NULL) GPU_MSG ("segfault imminent");
-	int numAugTrg=getnumAugTrg(DnC);
 	int trgBox[3*numAugTrg];
 	make_ds_down(trgBox,DnC);
 

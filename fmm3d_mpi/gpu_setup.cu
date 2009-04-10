@@ -91,35 +91,72 @@ gpu_count (void)
   return 0; /* no devices found */
 }
 
-void
-gpu_dumpinfo (size_t dev_id)
+static
+const char *
+get_log_dir_ (void)
 {
+  static const char* log_dir_ = NULL;
+  if (!log_dir_) {
+    const char* s = getenv ("LOG_DIR");
+    if (s && strlen (s) > 0)
+      log_dir_ = s;
+    else
+      log_dir_ = ".";
+  }
+  MPI_ASSERT (log_dir_);
+  return log_dir_;
+}
+
+void
+gpu_dumpinfo (FILE* fp, size_t dev_id)
+{
+  FILE* fp_out = fp;
+  if (!fp) {
+    /* Open 'default' file based on node name */
+    int rank = -1;
+    char procname[MPI_MAX_PROCESSOR_NAME+1];
+    int procnamelen;
+    memset (procname, 0, sizeof (procname));
+    MPI_Get_processor_name (procname, &procnamelen);
+    MPI_Comm_rank (MPI_COMM_WORLD, &rank);
+
+    const char* log_dir = get_log_dir_ ();
+    int pathlen = strlen (log_dir) + 1 + MPI_MAX_PROCESSOR_NAME + 15 + 1;
+    char* log_file = new char[pathlen];
+    MPI_ASSERT (log_file);
+    memset (log_file, 0, pathlen);
+    sprintf (log_file, "%s/%s--p%d.log", log_dir, procname);
+    fp_out = fopen (log_file, "wt");
+    MPI_ASSERT (fp_out);
+  }
   cudaDeviceProp p;
   MPI_ASSERT (dev_id < gpu_count ());
   CUDA_SAFE_CALL(cudaGetDeviceProperties(&p, (int)dev_id)); GPU_CE;
-  fprintf (stderr, "==> Device %lu: \"%s\"\n", (unsigned long)dev_id, p.name);
-  fprintf (stderr, " Major revision number: %d\n", p.major);
-  fprintf (stderr, " Minor revision number: %d\n", p.minor);
-  fprintf (stderr, " Total amount of global memory: %u MB\n", p.totalGlobalMem >> 20);
+  fprintf (fp_out, "==> Device %lu: \"%s\"\n", (unsigned long)dev_id, p.name);
+  fprintf (fp_out, " Major revision number: %d\n", p.major);
+  fprintf (fp_out, " Minor revision number: %d\n", p.minor);
+  fprintf (fp_out, " Total amount of global memory: %u MB\n", p.totalGlobalMem >> 20);
 #if CUDART_VERSION >= 2000
-  fprintf (stderr, " Number of multiprocessors: %d\n", p.multiProcessorCount);
-  fprintf (stderr, " Number of cores: %d\n", 8 * p.multiProcessorCount);
+  fprintf (fp_out, " Number of multiprocessors: %d\n", p.multiProcessorCount);
+  fprintf (fp_out, " Number of cores: %d\n", 8 * p.multiProcessorCount);
 #endif
-  fprintf (stderr, " Total amount of constant memory: %u MB\n", p.totalConstMem >> 20);
-  fprintf (stderr, " Total amount of shared memory per block: %u KB\n", p.sharedMemPerBlock >> 10);
-  fprintf (stderr, " Total number of registers available per block: %d\n", p.regsPerBlock);
-  fprintf (stderr, " Warp size: %d\n", p.warpSize);
-  fprintf (stderr, " Maximum number of threads per block: %d\n", p.maxThreadsPerBlock);
-  fprintf (stderr, " Maximum sizes of each dimension of a block: %d x %d x %d\n",
+  fprintf (fp_out, " Total amount of constant memory: %u MB\n", p.totalConstMem >> 20);
+  fprintf (fp_out, " Total amount of shared memory per block: %u KB\n", p.sharedMemPerBlock >> 10);
+  fprintf (fp_out, " Total number of registers available per block: %d\n", p.regsPerBlock);
+  fprintf (fp_out, " Warp size: %d\n", p.warpSize);
+  fprintf (fp_out, " Maximum number of threads per block: %d\n", p.maxThreadsPerBlock);
+  fprintf (fp_out, " Maximum sizes of each dimension of a block: %d x %d x %d\n",
    p.maxThreadsDim[0], p.maxThreadsDim[1], p.maxThreadsDim[2]);
-  fprintf (stderr, " Maximum sizes of each dimension of a grid: %d x %d x %d\n",
+  fprintf (fp_out, " Maximum sizes of each dimension of a grid: %d x %d x %d\n",
    p.maxGridSize[0], p.maxGridSize[1], p.maxGridSize[2]);
-  fprintf (stderr, " Maximum memory pitch: %u bytes\n", p.memPitch);
-  fprintf (stderr, " Texture alignment: %u bytes\n", p.textureAlignment);
-  fprintf (stderr, " Clock rate: %.2f GHz\n", p.clockRate * 1e-6f);
+  fprintf (fp_out, " Maximum memory pitch: %u bytes\n", p.memPitch);
+  fprintf (fp_out, " Texture alignment: %u bytes\n", p.textureAlignment);
+  fprintf (fp_out, " Clock rate: %.2f GHz\n", p.clockRate * 1e-6f);
 #if CUDART_VERSION >= 2000
-  fprintf (stderr, " Concurrent copy and execution: %s\n", p.deviceOverlap ? "Yes" : "No");
+  fprintf (fp_out, " Concurrent copy and execution: %s\n", p.deviceOverlap ? "Yes" : "No");
 #endif
+  if (!fp && fp_out)
+    fclose (fp_out);
 }
 
 void
@@ -127,7 +164,7 @@ gpu_select (size_t dev_id)
 {
   fprintf (stderr, "==> Selecting GPU device: %lu\n", (unsigned long)dev_id);
   CUDA_SAFE_CALL (cudaSetDevice ((int)dev_id)); GPU_CE;
-  gpu_dumpinfo (dev_id);
+  gpu_dumpinfo (NULL, dev_id);
 }
 
 /** Allocates 'n' bytes, initialized to zero */

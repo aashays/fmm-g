@@ -16,10 +16,12 @@ extern "C" {
   size_t gpu_count (void);
 
   /**
-   *  Dumps information about a GPU device to stderr, where 0 <= dev_id
-   *  < gpu_count()
+   *  Dumps information about a GPU device to 'fp', where 0 <= dev_id
+   *  < gpu_count(). If 'fp' is NULL, then this routine creates a
+   *  host-specific data file. Use the environment variable 'LOG_DIR'
+   *  to have the data placed into a specific output directory.
    */
-  void gpu_dumpinfo (size_t dev_id);
+  void gpu_dumpinfo (FILE* fp, size_t dev_id);
 
   /** \name Prints GPU-related messages, including MPI rank & GPU device information. */
   /*@{*/

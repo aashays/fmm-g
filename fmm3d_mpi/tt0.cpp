@@ -100,8 +100,6 @@ int main(int argc, char** argv)
       cerr << "*** ERROR: No GPU devices available! ***" << endl;
       return -1;
     }
-    for (size_t dev_id = 0; dev_id < num_gpus; ++dev_id)
-      gpu_dumpinfo (dev_id);
 
     int mpirank;
     MPI_Comm_rank (PETSC_COMM_WORLD, &mpirank);

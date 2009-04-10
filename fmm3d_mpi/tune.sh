@@ -16,8 +16,8 @@ fi
 TT0=./tt0
 OPTS_IN=options_tune.in
 OPTS_OUT_BASE=${OUTDIR}/options_tune
-PTSMAX_SEQ="32 64 128 256 512"
-PTSMAX_GPU="${PTSMAX_SEQ} 1024 2048 4096"
+PTSMAX_SEQ="32 64 128 256"
+PTSMAX_GPU="${PTSMAX_SEQ} 512 1024 2048 4096"
 
 if ! mkdir -p ${OUTDIR} ; then
   echo "*** Couldn't create output directory, '${OUTDIR}'. ***"
