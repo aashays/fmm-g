@@ -95,6 +95,7 @@ int main(int argc, char** argv)
   PetscTruth gpu_ulist;
   PetscOptionsHasName(0,"-gpu_ulist",&gpu_ulist);
   if (gpu_ulist) {
+#ifdef COMPILE_GPU
     size_t num_gpus = gpu_count ();
     if (!num_gpus) {
       cerr << "*** ERROR: No GPU devices available! ***" << endl;
@@ -114,6 +115,9 @@ int main(int argc, char** argv)
 
     gpu_select (gpu_id);
     cout << "==> p" << mpirank << "(" << procname << ") --> GPU #" << gpu_id << endl;
+#else
+    SETERRQ(1,"GPU code not compiled");
+#endif
   }
 
   // make "Main Stage" invisible

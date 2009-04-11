@@ -184,6 +184,11 @@ public:
   int setup();
   /*! evaluate function, detailed in fmm3d_mpi_eval.cpp */
   int evaluate(Vec srcDen, Vec trgVal);
+
+  // tree-based exchange of upward densities
+  int ExchangeOctantsTreeBased();
+  bool ParInsLayerIntersectsRange(ot::TreeNode oct, int r1, int r2);
+
   /*! check function, returns relative error.  Detailed in fmm3d_mpi_check.cpp */  
   int check(Vec srcDen, Vec trgVal, PetscInt numchk, double& rerr);  //int report();
   //OTHER ACCESS
