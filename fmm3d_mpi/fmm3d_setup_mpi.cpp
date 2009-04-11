@@ -130,6 +130,9 @@ int FMM3d_MPI::setup()
   _matmgnt  = MatMgnt3d_MPI::getmmptr(_knl_mm, _np);
 
   /* 3. self setup */
+  PetscTruth use_treebased_broadcast;
+  PetscOptionsHasName(0,"-use_treebased_broadcast",&use_treebased_broadcast);
+
   _nodeVec.resize( _let->nodeVec().size() );
     // ----------------------------------------------------------------------
   /* In the following scope, use the LET to build the global data vectors
@@ -150,15 +153,18 @@ int FMM3d_MPI::setup()
 	 pC( VecCreateMPI(mpiComm(), lclGlbSrcExaCnt*dim(),         PETSC_DETERMINE, &_glbSrcExaPos) );
 	 pC( VecCreateMPI(mpiComm(), lclGlbSrcExaCnt*dim(),         PETSC_DETERMINE, &_glbSrcExaNor) );  
 	 pC( VecCreateMPI(mpiComm(), lclGlbSrcExaCnt*srcDOF(),        PETSC_DETERMINE, &_glbSrcExaDen) );
-	 pC( VecCreateMPI(mpiComm(), lclGlbSrcNodeCnt*datSze(UE),  PETSC_DETERMINE, &_glbSrcUpwEquDen) );
-#ifdef DEBUG_LET
-	 if (!mpiRank())
+	 if (!use_treebased_broadcast)
 	 {
-	   PetscInt upwEquGlbSize;
-	   VecGetSize(_glbSrcUpwEquDen,&upwEquGlbSize);
-	   std::cout<<"Global size of vector of equivalent densities: "<<upwEquGlbSize<<endl;
-	 }
+	   pC( VecCreateMPI(mpiComm(), lclGlbSrcNodeCnt*datSze(UE),  PETSC_DETERMINE, &_glbSrcUpwEquDen) );
+#ifdef DEBUG_LET
+	   if (!mpiRank())
+	   {
+	     PetscInt upwEquGlbSize;
+	     VecGetSize(_glbSrcUpwEquDen,&upwEquGlbSize);
+	     std::cout<<"Global size of vector of equivalent densities: "<<upwEquGlbSize<<endl;
+	   }
 #endif
+	 }
 	  
 
   }
@@ -249,47 +255,50 @@ int FMM3d_MPI::setup()
 	 pC( ISDestroy(selfis) );
 	 pC( ISDestroy(combis) );
 
-	 /* Creates a data structure for an index set containing a list of evenly spaced integers.
-	  * Starts at 0 and increments by 1 until size ctbSrcNodeCnt*datSze(UE).  Store in selfis.  See:
-	  * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateStride.html
-	  */
-	 pC( ISCreateStride(PETSC_COMM_SELF, ctbSrcNodeCnt*datSze(UE),0,1,&selfis) );
-	 for(size_t i=0; i<ctb2GlbSrcNodeMap.size(); i++){
+	 if (!use_treebased_broadcast)
+	 {
+	   /* Creates a data structure for an index set containing a list of evenly spaced integers.
+	    * Starts at 0 and increments by 1 until size ctbSrcNodeCnt*datSze(UE).  Store in selfis.  See:
+	    * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateStride.html
+	    */
+	   pC( ISCreateStride(PETSC_COMM_SELF, ctbSrcNodeCnt*datSze(UE),0,1,&selfis) );
+	   for(size_t i=0; i<ctb2GlbSrcNodeMap.size(); i++){
 #ifdef DEBUG_LET
-	   assert(ctb2GlbSrcNodeMap[i]>=0);
+	     assert(ctb2GlbSrcNodeMap[i]>=0);
 #endif
-	   ctb2GlbSrcNodeMap[i]*=datSze(UE);
+	     ctb2GlbSrcNodeMap[i]*=datSze(UE);
+	   }
+	   /* Creates a data structure for an index set containing a list of integers. The indices are relative to entries, not blocks
+	    * ctb2GlbSrcNodeMap.size() = length of index set
+	    * datSze(UE) = number of elements in each block
+	    * ctb2GlbSrcExaMap = list of integers
+	    * combis = new index set
+	    * See for more info: 
+	    * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateBlock.html
+	    */
+	   pC( ISCreateBlock( PETSC_COMM_SELF, datSze(UE), ctb2GlbSrcNodeMap.size(), ctb2GlbSrcNodeMap.size()? &ctb2GlbSrcNodeMap[0]:0, &combis) );
+	   for(size_t i=0; i<ctb2GlbSrcNodeMap.size(); i++){
+	     ctb2GlbSrcNodeMap[i]/=datSze(UE);
+	   }
+	   /* http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/Vec/VecScatterCreate.html
+	    * Create new scatter context _ctb2GlbSrcUpwEquDen.  Scatter from shape of _ctbSrcUpwEquDen (specifically indices selfis) to shape of _glbSrcUpwEquDen
+	    * (specifically indices combis). Used in fmm3d_eval_mpi.cpp
+	    */
+	   MPI_Barrier(mpiComm());
+	   if(!mpiRank())
+	     std::cout<<"Creating Ctb2GlbSrcUpwEquDen.... "<<endl;
+
+	   PetscLogEventBegin(Ctb2GlbSctCreate_event,0,0,0,0);
+	   pC( VecScatterCreate(_ctbSrcUpwEquDen, selfis, _glbSrcUpwEquDen, combis, &_ctb2GlbSrcUpwEquDen) );
+	   PetscLogEventEnd(Ctb2GlbSctCreate_event,0,0,0,0);
+
+	   MPI_Barrier(mpiComm());
+	   if(!mpiRank())
+	     std::cout<<"Created Ctb2GlbSrcUpwEquDen successfully"<<endl;
+
+	   pC( ISDestroy(selfis) );
+	   pC( ISDestroy(combis) );
 	 }
-	 /* Creates a data structure for an index set containing a list of integers. The indices are relative to entries, not blocks
-	  * ctb2GlbSrcNodeMap.size() = length of index set
-	  * datSze(UE) = number of elements in each block
-	  * ctb2GlbSrcExaMap = list of integers
-	  * combis = new index set
-	  * See for more info: 
-	  * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateBlock.html
-	  */
-	 pC( ISCreateBlock( PETSC_COMM_SELF, datSze(UE), ctb2GlbSrcNodeMap.size(), ctb2GlbSrcNodeMap.size()? &ctb2GlbSrcNodeMap[0]:0, &combis) );
-	 for(size_t i=0; i<ctb2GlbSrcNodeMap.size(); i++){
-		ctb2GlbSrcNodeMap[i]/=datSze(UE);
-	 }
-	 /* http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/Vec/VecScatterCreate.html
-	  * Create new scatter context _ctb2GlbSrcUpwEquDen.  Scatter from shape of _ctbSrcUpwEquDen (specifically indices selfis) to shape of _glbSrcUpwEquDen
-	  * (specifically indices combis). Used in fmm3d_eval_mpi.cpp
-	  */
-	 MPI_Barrier(mpiComm());
-	 if(!mpiRank())
-	   std::cout<<"Creating Ctb2GlbSrcUpwEquDen.... "<<endl;
-
-	 PetscLogEventBegin(Ctb2GlbSctCreate_event,0,0,0,0);
-	 pC( VecScatterCreate(_ctbSrcUpwEquDen, selfis, _glbSrcUpwEquDen, combis, &_ctb2GlbSrcUpwEquDen) );
-	 PetscLogEventEnd(Ctb2GlbSctCreate_event,0,0,0,0);
-
-	 MPI_Barrier(mpiComm());
-	 if(!mpiRank())
-	   std::cout<<"Created Ctb2GlbSrcUpwEquDen successfully"<<endl;
-
-	 pC( ISDestroy(selfis) );
-	 pC( ISDestroy(combis) );
 	 
 	 /* 3. gather the contributor positions using the pos scatter */
 	 PetscScalar zero=0.0;  pC( VecSet(_ctbSrcExaPos, zero) );
@@ -425,52 +434,55 @@ int FMM3d_MPI::setup()
 	  * Starts at 0 and increments by 1 until size usrSrcNodeCnt*datSze(UE).  Store in selfis.  See:
 	  * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateStride.html
 	  */
-	 pC( ISCreateStride(PETSC_COMM_SELF, usrSrcNodeCnt*datSze(UE),0,1,&selfis) );
-	 for(size_t i=0; i<usr2GlbSrcNodeMap.size(); i++){
-		usr2GlbSrcNodeMap[i]*=datSze(UE);
-	 }
-	 /* Creates a data structure for an index set containing a list of integers. The indices are relative to entries, not blocks
-	  * usr2GlbSrcNodeMap.size() = length of index set
-	  * datSze(UE) = number of elements in each block
-	  * usr2GlbSrcExaMap = list of integers
-	  * combis = new index set
-	  * See for more info: 
-	  * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateBlock.html
-	  */
-	 pC( ISCreateBlock( PETSC_COMM_SELF, datSze(UE), usr2GlbSrcNodeMap.size(), usr2GlbSrcNodeMap.size()? &usr2GlbSrcNodeMap[0]:0, &combis) );
-	 for(size_t i=0; i<usr2GlbSrcNodeMap.size(); i++){
-		usr2GlbSrcNodeMap[i]/=datSze(UE);
-	 }
-	 /* http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/Vec/VecScatterCreate.html
-	  * Create new scatter context _usr2GlbSrcUpwEquDen.  Scatter from shape of _usrSrcUpwEquDen (specifically indices selfis) to shape of _glbSrcUpwEquDen
-	  * (specifically indices combis). Used in fmm3d_eval_mpi.cpp
-	  */
-	 
-	 // memory usage profiling
+	 if (!use_treebased_broadcast)
 	 {
-	   PetscLogDouble mem1, mem2, locScatUsage, maxScatUsage, minScatUsage;
-	   PetscMallocGetCurrentUsage(&mem1);
+	   pC( ISCreateStride(PETSC_COMM_SELF, usrSrcNodeCnt*datSze(UE),0,1,&selfis) );
+	   for(size_t i=0; i<usr2GlbSrcNodeMap.size(); i++){
+	     usr2GlbSrcNodeMap[i]*=datSze(UE);
+	   }
+	   /* Creates a data structure for an index set containing a list of integers. The indices are relative to entries, not blocks
+	    * usr2GlbSrcNodeMap.size() = length of index set
+	    * datSze(UE) = number of elements in each block
+	    * usr2GlbSrcExaMap = list of integers
+	    * combis = new index set
+	    * See for more info: 
+	    * http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/IS/ISCreateBlock.html
+	    */
+	   pC( ISCreateBlock( PETSC_COMM_SELF, datSze(UE), usr2GlbSrcNodeMap.size(), usr2GlbSrcNodeMap.size()? &usr2GlbSrcNodeMap[0]:0, &combis) );
+	   for(size_t i=0; i<usr2GlbSrcNodeMap.size(); i++){
+	     usr2GlbSrcNodeMap[i]/=datSze(UE);
+	   }
+	   /* http://www-unix.mcs.anl.gov/petsc/petsc-as/snapshots/petsc-current/docs/manualpages/Vec/VecScatterCreate.html
+	    * Create new scatter context _usr2GlbSrcUpwEquDen.  Scatter from shape of _usrSrcUpwEquDen (specifically indices selfis) to shape of _glbSrcUpwEquDen
+	    * (specifically indices combis). Used in fmm3d_eval_mpi.cpp
+	    */
 
-	   MPI_Barrier(mpiComm());
-	   if(!mpiRank())
-	     std::cout<<"Creating usr2GlbSrcUpwEquDen.... "<<endl;
-	   PetscLogEventBegin(Usr2GlbSctCreate_event,0,0,0,0);
-	   pC( VecScatterCreate(_usrSrcUpwEquDen, selfis, _glbSrcUpwEquDen, combis, &_usr2GlbSrcUpwEquDen) );
-	   PetscLogEventEnd(Usr2GlbSctCreate_event,0,0,0,0);
-	   MPI_Barrier(mpiComm());
-	   if(!mpiRank())
-	     std::cout<<"Created usr2GlbSrcUpwEquDen successfully"<<endl;
+	   // memory usage profiling
+	   {
+	     PetscLogDouble mem1, mem2, locScatUsage, maxScatUsage, minScatUsage;
+	     PetscMallocGetCurrentUsage(&mem1);
 
-	   PetscMallocGetCurrentUsage(&mem2);
-	   locScatUsage = mem2-mem1;
-	   MPI_Reduce ( &locScatUsage, &maxScatUsage, 1, MPIU_PETSCLOGDOUBLE, MPI_MAX, 0, mpiComm() );
-	   MPI_Reduce ( &locScatUsage, &minScatUsage, 1, MPIU_PETSCLOGDOUBLE, MPI_MIN, 0, mpiComm() );
-	   if(!mpiRank())
-	     std::cout<<"fmm setup: memory used by scatter context 'upper equiv. dens. users-to-owners', min="<<minScatUsage<<" max="<<maxScatUsage<<endl;
-	 } 
+	     MPI_Barrier(mpiComm());
+	     if(!mpiRank())
+	       std::cout<<"Creating usr2GlbSrcUpwEquDen.... "<<endl;
+	     PetscLogEventBegin(Usr2GlbSctCreate_event,0,0,0,0);
+	     pC( VecScatterCreate(_usrSrcUpwEquDen, selfis, _glbSrcUpwEquDen, combis, &_usr2GlbSrcUpwEquDen) );
+	     PetscLogEventEnd(Usr2GlbSctCreate_event,0,0,0,0);
+	     MPI_Barrier(mpiComm());
+	     if(!mpiRank())
+	       std::cout<<"Created usr2GlbSrcUpwEquDen successfully"<<endl;
 
-	 pC( ISDestroy(selfis) );
-	 pC( ISDestroy(combis) );
+	     PetscMallocGetCurrentUsage(&mem2);
+	     locScatUsage = mem2-mem1;
+	     MPI_Reduce ( &locScatUsage, &maxScatUsage, 1, MPIU_PETSCLOGDOUBLE, MPI_MAX, 0, mpiComm() );
+	     MPI_Reduce ( &locScatUsage, &minScatUsage, 1, MPIU_PETSCLOGDOUBLE, MPI_MIN, 0, mpiComm() );
+	     if(!mpiRank())
+	       std::cout<<"fmm setup: memory used by scatter context 'upper equiv. dens. users-to-owners', min="<<minScatUsage<<" max="<<maxScatUsage<<endl;
+	   } 
+
+	   pC( ISDestroy(selfis) );
+	   pC( ISDestroy(combis) );
+	 }
 	 
 	 /* 3. do vecscatter */
 	 /* Scatter from _usrSrcExaPos to _usrSrcExaPos using _usr2GlbSrcExaPos context

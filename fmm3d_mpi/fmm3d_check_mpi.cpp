@@ -163,7 +163,7 @@ int FMM3d_MPI::check(Vec srcDen, Vec trgVal, PetscInt numChk, double& rerr)
   pC( VecNorm(chkDen, NORM_2, &npot) );
   
   rerr = nerr/npot;
-  pC( PetscPrintf(mpiComm(), "Error %e, %e %e\n", nerr/npot, nerr, npot) );
+  // pC( PetscPrintf(mpiComm(), "Error %e, %e %e\n", nerr/npot, nerr, npot) );
   
   pC( VecDestroy(chkPos) );
   pC( VecDestroy(chkVal) );
