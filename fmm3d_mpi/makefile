@@ -5,7 +5,7 @@ include ../makefile.this_machine
 LIB_SRC = 	kernel3d_mpi.cpp knlmat3d_mpi.cpp dense3d_mpi.cpp let3d_mpi.cpp fmm3d_mpi.cpp matmgnt3d_mpi.cpp fmm3d_setup_mpi.cpp fmm3d_eval_mpi.cpp fmm3d_check_mpi.cpp manage_petsc_events.cpp mpi_workarounds.cpp
 
 ifeq ($(USE_GPU),yes)
-LIB_OBJ = 	$(LIB_SRC:.cpp=.o) gpu_setup.o  gpu_updown.o
+LIB_OBJ = 	$(LIB_SRC:.cpp=.o) gpu_setup.o  gpu_updown.o gpu_vlist.o
 else
 LIB_OBJ = 	$(LIB_SRC:.cpp=.o)
 endif
