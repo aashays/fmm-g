@@ -9,9 +9,7 @@
 #include <sys/time.h>
 #include <assert.h>
 #include "cudacheck.h"
-#include <iostream>
-#define CPU
-//#define GPU
+#include "gpu_setup.h"
 
 using namespace std;
 
@@ -159,6 +157,8 @@ double CUDAexecTime;
 
 void cudavlistfunc(int DenLength,int NumSym,int numTargets,int numSources,int *vlistStart,int *vlist,int *spv,float *d,float *T,float *p){
 
+  GPU_MSG ("V-List");
+
   int* cudaVlist,*cudaSpv,*cudaVlistStart;
 
    float2* cudaD,*cudaP,*cudaT;
@@ -177,24 +177,32 @@ typedef int Index1[DenLength];
    int vlistSize=vlistStart[numTargets];
 
 //printf("Density at point[1].y is %f\n",d[1].y);
-   cudaMalloc((void**) &cudaVlist, vlistSize*sizeof(int));
-   cudaMalloc((void**) &cudaSpv,  vlistSize*sizeof(int));
+   //cudaMalloc((void**) &cudaVlist, vlistSize*sizeof(int));
+   //cudaMalloc((void**) &cudaSpv,  vlistSize*sizeof(int));
+   cudaVlist = gpu_calloc_int (vlistSize);
+   cudaSpv = gpu_calloc_int (vlistSize);
 
-   cudaMalloc((void**) &cudaD,numSources*sizeField);
-   cudaMalloc((void**) &cudaP,numTargets*sizeField);
-   cudaMalloc((void**)& cudaT,NumSym*sizeField);
-   cudaMalloc((void**)&cudaVlistStart,(numTargets+1)*sizeof(int));
+   //cudaMalloc((void**) &cudaD,numSources*sizeField);
+   //cudaMalloc((void**) &cudaP,numTargets*sizeField);
+   //cudaMalloc((void**)& cudaT,NumSym*sizeField);
+   //cudaMalloc((void**)&cudaVlistStart,(numTargets+1)*sizeof(int));
 
+   cudaD = (float2 *)gpu_calloc (numSources*sizeField);
+   cudaP = (float2 *)gpu_calloc (numTargets*sizeField);
+   cudaT = (float2 *)gpu_calloc (NumSym*sizeField);
+   cudaVlistStart = gpu_calloc_int (numTargets+1);
 
+   //cudaMemcpy(cudaVlist,vlist, vlistSize*sizeof(int),cudaMemcpyHostToDevice);
+   //cudaMemcpy(cudaSpv,spv,vlistSize*sizeof(int),cudaMemcpyHostToDevice);
+   //cudaMemcpy(cudaD,d,numSources*sizeField,cudaMemcpyHostToDevice);
+   //cudaMemcpy(cudaT,T,NumSym*sizeField,cudaMemcpyHostToDevice);
+   //cudaMemcpy(cudaVlistStart,vlistStart,(numTargets+1)*sizeof(int),cudaMemcpyHostToDevice);
 
-   cudaMemcpy(cudaVlist,vlist, vlistSize*sizeof(int),cudaMemcpyHostToDevice);
-   cudaMemcpy(cudaSpv,spv,vlistSize*sizeof(int),cudaMemcpyHostToDevice);
-
-   cudaMemcpy(cudaD,d,numSources*sizeField,cudaMemcpyHostToDevice);
-
-
-   cudaMemcpy(cudaT,T,NumSym*sizeField,cudaMemcpyHostToDevice);
-   cudaMemcpy(cudaVlistStart,vlistStart,(numTargets+1)*sizeof(int),cudaMemcpyHostToDevice);
+   gpu_copy_cpu2gpu_int (cudaVlist, vlist, vlistSize);
+   gpu_copy_cpu2gpu_int (cudaSpv, spv, vlistSize);
+   gpu_copy_cpu2gpu (cudaD, d, numSources*sizeField);
+   gpu_copy_cpu2gpu (cudaT, T, NumSym*sizeField);
+   gpu_copy_cpu2gpu_int (cudaVlistStart, vlistStart, numTargets+1);
 
     checkCUDAError("memcpy");
 
@@ -202,21 +210,17 @@ typedef int Index1[DenLength];
    dim3 dimGrid(numTargets/BLOCK_X_SIZE,DenLength/BLOCK_Y_SIZE);
 
 
-      Potential<<<dimGrid,dimBlock>>>(NumSym,DenLength,cudaT,cudaD,cudaVlist,cudaVlistStart,cudaSpv,cudaP);
+   Potential<<<dimGrid,dimBlock>>>(NumSym,DenLength,cudaT,cudaD,cudaVlist,cudaVlistStart,cudaSpv,cudaP);
 
-
-   cudaMemcpy(p,cudaP,numTargets*sizeField,cudaMemcpyDeviceToHost);
-    checkCUDAError("memcpy");
+   //cudaMemcpy(p,cudaP,numTargets*sizeField,cudaMemcpyDeviceToHost);
+   gpu_copy_gpu2cpu (p, cudaP, numTargets*sizeField);
+   checkCUDAError("memcpy");
 
    cudaFree(cudaVlist);
    cudaFree(cudaSpv);
    cudaFree(cudaT);
    cudaFree(cudaD);
    cudaFree(cudaP);
-
-
-
-
 }
 
 
@@ -253,70 +257,6 @@ void vlistfunc(int NL,int NS,int numTargets,int numSources,int *vlistSize,int *v
          p[i][j][1] =  pf[i*NL+j].y;
       }
    }
-
-
-
-}
-
-int not_main(){
-
-
-
-
-   int i,j;
-   Field d[numSources]; 
-
-
-
-   Field T[NS];
-   int vlistStart[numTargets+1];
-
-   vlistStartGenerators(vlistStart);
-
-   int vlistSize=vlistStart[numTargets];
-
-   int *vlisttemp,*spvtemp;
-   vlisttemp =(int*) malloc(vlistSize*sizeof(int));
-   spvtemp = (int*) malloc(vlistSize*sizeof(int));
-
-   vlistGenerators(vlisttemp,vlistSize);
-
-   symmetryGenerators(spvtemp,vlistSize);
-   densityGenerators(d);
-
-
-   translationGenerators(T);
-
-
-
-   float db[numSources][NL][2];//
-   float pb[numTargets][NL][2];
-   float Tb[NS][NL][2];
-
-
-//convert from float2 to float[2]
-
-   for (i=0;i<numSources;i++){
-      for (j=0;j<NL;j++){
-         db[i][j][0]=  d[i][j].x;
-         db[i][j][1] = d[i][j].y;
-      }
-   }
-
-   for (i=0;i<NS;i++){
-      for (j=0;j<NL;j++){
-         Tb[i][j][0] =  T[i][j].x;
-         Tb[i][j][1] =  T[i][j].y;
-      }
-   }
-
-
-
-
-//interface
-vlistfunc(NL,NS,numTargets,numSources,vlistStart,vlisttemp,spvtemp,db,Tb,pb);
-
-
 
 
 

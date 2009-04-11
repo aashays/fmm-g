@@ -33,20 +33,23 @@ extern "C" {
   /** Selects a GPU by ID, 0 <= dev_id < gpu_count() */
   void gpu_select (size_t dev_id);
   
+  /** Allocates a block of 'n' bytes on the GPU, and initializes them to zero. */
+  void* gpu_calloc (size_t n);
+
   /** Allocates a block of 'n' floats on the GPU, and initializes them to zero. */
   float* gpu_calloc_float (size_t n);
 
   /** Allocates a block of 'n' ints on the GPU, and initializes them to zero. */
   int* gpu_calloc_int (size_t n);
   
-  /** Copies from host memory to device memory */
+  /** \name Copies between host and device (GPU) memory. */
+  /*@{*/
+  void gpu_copy_cpu2gpu (void* d, const void* s, size_t n);
   void gpu_copy_cpu2gpu_float (float* d, const float* s, size_t n);
-  
-  /** Copies from host memory to device memory */
   void gpu_copy_cpu2gpu_int (int* d, const int* s, size_t n);
-  
-  /** Copies from device memory to host memory */
+  void gpu_copy_gpu2cpu (void* d, const void* s, size_t n);
   void gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n);
+  /*@}*/
 
   /** Checks that a pointer is non-NULL, and aborts with an error if it is. */
   void gpu_check_pointer (const void* p, const char* filename, size_t line);

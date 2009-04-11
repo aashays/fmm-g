@@ -168,9 +168,8 @@ gpu_select (size_t dev_id)
 }
 
 /** Allocates 'n' bytes, initialized to zero */
-static
 void *
-gpu_calloc_ (size_t n)
+gpu_calloc (size_t n)
 {
   void* p = NULL;
   if (n) {
@@ -190,13 +189,13 @@ gpu_calloc_ (size_t n)
 float *
 gpu_calloc_float (size_t n)
 {
-  return (float *)gpu_calloc_ (n * sizeof (float));
+  return (float *)gpu_calloc (n * sizeof (float));
 }
 
 int *
 gpu_calloc_int (size_t n)
 {
-  return (int *)gpu_calloc_ (n * sizeof (int));
+  return (int *)gpu_calloc (n * sizeof (int));
 }
 
 //extern "C"
@@ -215,19 +214,31 @@ gpu_calloc_int (size_t n)
 */
 
 void
-gpu_copy_cpu2gpu_float (float* d, const float* s, size_t n)
+gpu_copy_cpu2gpu (void* d, const void* s, size_t n_bytes)
 {
-  if (n) {
-    cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyHostToDevice);
+  if (n_bytes) {
+    cudaMemcpy (d, s, n_bytes, cudaMemcpyHostToDevice);
     GPU_CE;
   }
 }
 
 void
+gpu_copy_cpu2gpu_float (float* d, const float* s, size_t n)
+{
+  gpu_copy_cpu2gpu (d, s, n * sizeof (float));
+}
+
+void
 gpu_copy_cpu2gpu_int (int* d, const int* s, size_t n)
 {
-  if (n) {
-    cudaMemcpy (d, s, n * sizeof (int), cudaMemcpyHostToDevice);
+  gpu_copy_cpu2gpu (d, s, n * sizeof (int));
+}
+
+void
+gpu_copy_gpu2cpu (void* d, const void* s, size_t n_bytes)
+{
+  if (n_bytes) {
+    cudaMemcpy (d, s, n_bytes, cudaMemcpyDeviceToHost);
     GPU_CE;
   }
 }
@@ -235,10 +246,7 @@ gpu_copy_cpu2gpu_int (int* d, const int* s, size_t n)
 void
 gpu_copy_gpu2cpu_float (float* d, const float* s, size_t n)
 {
-  if (n) {
-    cudaMemcpy (d, s, n * sizeof (float), cudaMemcpyDeviceToHost);
-    GPU_CE;
-  }
+  gpu_copy_gpu2cpu (d, s, n * sizeof (float));
 }
 
 ////////////////////////////////////////BEGIN KERNEL///////////////////////////////////////////////
