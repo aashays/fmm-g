@@ -2,6 +2,7 @@
 #define GPU_SETUP_H_
 
 #include <cstddef>
+#include <cstdio>
 #include <p3d/point3d.h>
 #include <p3d/upComp.h>
 #include <p3d/dnComp.h>
