@@ -125,7 +125,7 @@ gpu_dumpinfo (FILE* fp, size_t dev_id)
     char* log_file = new char[pathlen];
     MPI_ASSERT (log_file);
     memset (log_file, 0, pathlen);
-    sprintf (log_file, "%s/%s--p%d.log", log_dir, procname);
+    sprintf (log_file, "%s/%s--p%d.log", log_dir, procname, rank);
     fp_out = fopen (log_file, "wt");
     MPI_ASSERT (fp_out);
   }
