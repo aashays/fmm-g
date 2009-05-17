@@ -1,0 +1,26 @@
+W-list begins from line 1062 of fmm3d_eval_mpi.cpp
+
+Lines of interest:
+	1093:	For every target box, put the coordinates into P->trg_
+		Code copied from the original u-list code
+	1108:	For every source box, put the source co-ords and densities into P->src_
+		The source co-ordinates are computed on the cpu. 
+		This job is done by the _matmgnt->locPos function (give it center and radius)
+		For the configuration file options_gpu_example, every source box generated will have 56 bodies
+	1114:	For some other configuration file (depending on the accuracy, the number 56 might change)
+		So we wait till we have the exact number of sources per box till we do a malloc
+	1123:	srcPos is a 3x56 matrix
+	1151:	Read the comment
+	1164:	Read the comment
+	1165:	UpwEqu2TrgChk_dgemv can be found in fmm3d_mpi.cpp (for debugging)
+	1180:	GPU call
+	1199:	Read comment
+	
+Debugging tips:
+
+CPU code runs when 1157 is uncommented and 1192 is commented
+GPU code runs when its the other way round
+fprintf values you need to compare/debug to stderr, redirect stderr to a file. stdout contains a lot of clutter, just grep "Relative" on stdout to check if the answers are correct
+
+Other issues:
+GPU kernel fails with an "Unspecified launch failure" if the Wlist is too small
