@@ -78,15 +78,15 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
   vector<Let3d_MPI::Node> & nodes = _let->nodeVec();
 
   vector<ot::TreeNode> * l; // l contains ``current list of octants'' at each iteration;  initially l contains local shared octants; finally l contains all necessary octants from other processors
-  l = new vector<ot::TreeNode> ; 
+  l = new vector<ot::TreeNode> ;
 
   // make a list of ``local shared octants'';  that is octants that this process owns and which (octants) have insulation layer intersecting with areas controlled by other processors
-  int q=0;  //  0 means root node;   
-  while(q!=-1) 
+  int q=0;  //  0 means root node;
+  while(q!=-1)
   {
     // if node q is not a leaf
     // and the span of the insulation layer of this node is not entirely local
-    // then  push all <children of q THAT WE OWN> to all processors whos areas intersect with the 
+    // then  push all <children of q THAT WE OWN> to all processors whos areas intersect with the
     // insulation layer
     // and go to first child of q and repeat
     if (!_let->terminal(q))
@@ -125,7 +125,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
       vector<ot::TreeNode>::const_iterator first_cpu = upper_bound(_let->procMins.begin(),_let->procMins.end(),min_neighb.getDFD());
       first_cpu--; //we actually need the last element which is not greater than search key
 
-      // past_last_cpu is upper bound: any processor with rank>=past_last_cpu does not intersect with insul. layer 
+      // past_last_cpu is upper bound: any processor with rank>=past_last_cpu does not intersect with insul. layer
       // we use getDLD() since max_neighb may intersect domains of many processors
       vector<ot::TreeNode>::const_iterator past_last_cpu = upper_bound(_let->procMins.begin(),_let->procMins.end(),max_neighb.getDLD());
       // now past_last_cpu points to first element which is greater than search key (maybe procMins.end() )
@@ -167,14 +167,14 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	  }
 	}
 
-      // go to first child of q 
+      // go to first child of q
       q=nodes[q].chd();
       continue;  // (while loop)
     } // end if (!terminal(q))
 
-    // otherwise (i.e. if q is a leaf, or does not enclose any sources, or its insulation 
-    // layer is  entirely local) go to "next" node 
-    // next node is next sibling (if we are not last sibling or root), or next sibling of a parent 
+    // otherwise (i.e. if q is a leaf, or does not enclose any sources, or its insulation
+    // layer is  entirely local) go to "next" node
+    // next node is next sibling (if we are not last sibling or root), or next sibling of a parent
     // (if parent is not last sibling itself) and so on; if we at the last node, just exit
     do
     {
@@ -250,7 +250,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
     MPI_Sendrecv(&send_size, 1, MPI_INT, partner, 0, &recv_size, 1, MPI_INT, partner, 0, mpiComm(), &status);
 
     vector<ot::TreeNode> recvd(recv_size);
-    //  int MPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Status *status) 
+    //  int MPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, int recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Status *status)
     MPI_Sendrecv(send_size? &to_send[0]:0, send_size, mpi_treenode, partner, 0, recv_size? &recvd[0]:0, recv_size, mpi_treenode, partner, 0, mpiComm(), &status);
     // now recvd  contains octants received from partner
 
@@ -271,8 +271,8 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
     vector<ot::TreeNode> * new_l = new vector<ot::TreeNode>;
     vector<double> * new_densities = new vector<double>;
     new_densities->reserve(densities->size()+recvd_densities.size()); // we'll resize it eventually if necessary
-    
-    // merging loop, we assume both "l" and "recvd" are Morton-sorted 
+
+    // merging loop, we assume both "l" and "recvd" are Morton-sorted
     size_t ll_ptr = 0;
     size_t recv_ptr = 0;
     while(ll_ptr<ll.size() && recv_ptr<recvd.size())
@@ -281,7 +281,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
       {
 	if (ParInsLayerIntersectsRange(ll[ll_ptr],q1,q2))   // octants from recvd should automatically satisfy this
 	{
-	  new_l->push_back(ll[ll_ptr]); 
+	  new_l->push_back(ll[ll_ptr]);
 	  for (int i=0; i<density_size; i++)
 	    new_densities->push_back( (*densities)[ll_ptr*density_size+i] );
 	}
@@ -289,7 +289,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
       }
       else
       {
-	new_l->push_back(recvd[recv_ptr]); 
+	new_l->push_back(recvd[recv_ptr]);
 	if (ll[ll_ptr] == recvd[recv_ptr])
 	{
 	  for (int i=0; i<density_size; i++)
@@ -309,7 +309,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
     {
       if (ParInsLayerIntersectsRange(ll[ll_ptr],q1,q2))   // octants from recvd should automatically satisfy this
       {
-	new_l->push_back(ll[ll_ptr]); 
+	new_l->push_back(ll[ll_ptr]);
 	for (int i=0; i<density_size; i++)
 	  new_densities->push_back( (*densities)[ll_ptr*density_size+i] );
       }
@@ -318,7 +318,7 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 
     while(recv_ptr<recvd.size())
     {
-      new_l->push_back(recvd[recv_ptr]); 
+      new_l->push_back(recvd[recv_ptr]);
       for (int i=0; i<density_size; i++)
 	new_densities->push_back( recvd_densities[recv_ptr*density_size+i] );
       recv_ptr++;
@@ -377,11 +377,11 @@ int FMM3d_MPI::ExchangeOctantsTreeBased()
 	  cout<<"Unneded octant! My rank: "<<mpiRank()<<" Octant: "<< (*l)[i] << endl;
 	  assert(false);
 	}
-	
+
 	// now go to the appropriate child of nodes[q] (maybe just created by code above)
 	unsigned idx[3];
 	for(int j=0; j<3; j++)
-	  idx[j]=( coord[j] >> (level - nodes[q].depth() - 1) ) & 1; 
+	  idx[j]=( coord[j] >> (level - nodes[q].depth() - 1) ) & 1;
 	q = nodes[q].chd() + idx[0]*4+idx[1]*2+idx[2];
       }
     }
@@ -417,8 +417,8 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   PetscTruth skip_communication;
   PetscOptionsHasName(0,"-eval_skip_communication",&skip_communication);
   if (skip_communication && !mpiRank())
-    std::cout<<"!!!!! All communications during interaction evaluation are skipped. Results are incorrect !!!!"<<endl; 
-      
+    std::cout<<"!!!!! All communications during interaction evaluation are skipped. Results are incorrect !!!!"<<endl;
+
   PetscTruth use_treebased_broadcast;
   PetscOptionsHasName(0,"-use_treebased_broadcast",&use_treebased_broadcast);
 
@@ -565,7 +565,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	  if (gpu_s2m)
 	  {
 #ifdef COMPILE_GPU
-	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++) 
+	    for (int j = 0; j < ctbSrcUpwChkValgNodeIdx.m(); j++)
 	      ctbSrcUpwChkValgNodeIdx(j) = UpC->trgVal[gNodeIdx][j];
 #else
 	    SETERRQ(1,"GPU code not compiled");
@@ -819,13 +819,13 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 
     for(size_t gNodeIdx=0; gNodeIdx<_let->nodeVec().size(); gNodeIdx++)
     {
-      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0) 
+      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0)
       { // this box contains targets and has some boxes on it's V-list
 	VtrgBoxMap[gNodeIdx]=numVtrgBoxes++;
 	totalVlistSize += _let->node(gNodeIdx).Vnodes().size();
       }
 
-      if( _let->node(gNodeIdx).tag() & LET_USERNODE &&  node(gNodeIdx).vLstOthNum()>0) 
+      if( _let->node(gNodeIdx).tag() & LET_USERNODE &&  node(gNodeIdx).vLstOthNum()>0)
       { // this box contains sources and is on V-list of some other box
 	VsrcBoxMap[gNodeIdx]=numVsrcBoxes++;
       }
@@ -846,7 +846,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	  if (abs(i1)>1 || abs(i2)>1 || abs(i3)>1 )
 	    transl_map[i1+3][i2+3][i3+3]=transl_counter++;
 	  else
-	    transl_map[i1+3][i2+3][i3+3]=-1; 
+	    transl_map[i1+3][i2+3][i3+3]=-1;
 
     // alloc fft-s of translations:
     vector<float> fTr (effDatSze*transl_counter);
@@ -881,7 +881,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 		  tmp(i,j+k*srcDOF) = tt(i+k*trgDOF,j);
 		}
 	    }
-	    _UpwEqu2DwnChkii.resize(trgDOF*srcDOF, effnum); 
+	    _UpwEqu2DwnChkii.resize(trgDOF*srcDOF, effnum);
 	    //forward FFT from tmp to _UpwEqu2DwnChkii;
 
 	    int nnn[3];
@@ -891,7 +891,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 
 	    fftw_plan forplan = fftw_plan_many_dft_r2c(3,nnn,srcDOF*trgDOF, tmp.data(),NULL, srcDOF*trgDOF,1, (fftw_complex*)(_UpwEqu2DwnChkii.data()),NULL, srcDOF*trgDOF,1, FFTW_ESTIMATE);
 	    fftw_execute(forplan);
-	    fftw_destroy_plan(forplan);	 
+	    fftw_destroy_plan(forplan);
 
 	    for (int i=0; i<effDatSze; i++)
 	      fTr[transl_counter*effDatSze + i]=_UpwEqu2DwnChkii._data[i];
@@ -899,7 +899,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	    transl_counter++;
 	  }
 
-    // extra integer in the end is necessary to calc. the length of last V-list 
+    // extra integer in the end is necessary to calc. the length of last V-list
     vector<int> vlist_starts(numVtrgBoxes+1,-1);
     vector<int> vlists(totalVlistSize,-1);
     // spv stores translation number for each box on each v-list
@@ -910,7 +910,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     int srcbox=0;
     for(size_t gNodeIdx=0; gNodeIdx<_let->nodeVec().size(); gNodeIdx++)
     {
-      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0) 
+      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0)
       { // this box contains targets and has some boxes on it's V-list
 	Point3 gNodeIdxctr(_let->center(gNodeIdx));
 	double D = 2.0 * _let->radius(gNodeIdx);
@@ -928,7 +928,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
       }
 
       // load densities
-      if( _let->node(gNodeIdx).tag() & LET_USERNODE &&  node(gNodeIdx).vLstOthNum()>0) 
+      if( _let->node(gNodeIdx).tag() & LET_USERNODE &&  node(gNodeIdx).vLstOthNum()>0)
       { // this box contains sources and is on V-list of some other box
 	// do fft
 	Node& srcnode = node(gNodeIdx);
@@ -960,7 +960,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
       for (int Vbox=0; Vbox<v_size; Vbox++)
       {
 	int VboxGlobNum = cur_vlist[Vbox];
-	float * src = &fDen[effDatSze*VboxGlobNum]; 
+	float * src = &fDen[effDatSze*VboxGlobNum];
 	float * trn = &fTr[effDatSze*cur_trans[Vbox]];
 
 	assert(effDatSze%2==0);
@@ -973,7 +973,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
 	  float d=trn[2*k+1];
 
 	  dst[2*k] += (a*c-b*d);
-	  dst[2*k+1] +=(a*d+b*c); 
+	  dst[2*k+1] +=(a*d+b*c);
 	}
       }
     }
@@ -989,7 +989,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     float nrmfc = 1.0/_matmgnt->regPos().n();
     for(size_t gNodeIdx=0; gNodeIdx<_let->nodeVec().size(); gNodeIdx++)
     {
-      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0) 
+      if( _let->node(gNodeIdx).tag() & LET_EVTRNODE &&  _let->node(gNodeIdx).Vnodes().size()>0)
       { // this box contains targets and has some boxes on it's V-list
 	DblNumVec evaTrgDwnChkVal(this->evaTrgDwnChkVal(gNodeIdx));
 	Node& trgnode = node(gNodeIdx);
@@ -1060,6 +1060,7 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   PetscLogEventEnd(EvalVList_event,0,0,0,0);
 
   //W
+//  fprintf(stderr,"w list\n\n");
   PetscLogEventBegin(EvalWList_event,0,0,0,0);
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
@@ -1067,29 +1068,159 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
   if ((papi_retval = PAPI_flops(&papi_real_time, &papi_proc_time, &papi_flpops, &papi_mflops)) != PAPI_OK)
     SETERRQ1(1,"PAPI failed with errorcode %d",papi_retval);
 #endif
+  //TODO: dont free gpu stuff, reuse from ulist
+  point3d *P;
+  bool to_call_gpu=false;
+  P=(point3d*)malloc(sizeof(point3d));
+  P->dim=3;	//FIXME
+  P->numSrc=0;
+  P->numTrg=procLclNum(_evaTrgExaPos);
+  P->numTrgBox=ordVec.size();
+  P->numSrcBox=ordVec.size();
+//  fprintf(stderr,"%d target points in %d boxes\n",P->numTrg,P->numTrgBox);
+  P->trg_=(float*)calloc(P->dim*P->numTrg,sizeof(float));
+  P->trgVal=(float*)calloc(P->dim*P->numTrg,sizeof(float));
+  P->srcBoxSize = (int *) calloc (ordVec.size(), sizeof(int));
+  P->trgBoxSize = (int *) calloc (ordVec.size(), sizeof(int));
+  P->uList=(int**)calloc(P->numTrgBox,sizeof(int*));
+  P->uListLen=(int*)calloc(P->numTrgBox,sizeof(int));
+  P->src_=NULL;
+  int tempsrcidx=0;
+  int trgIdx = 0;
   for(size_t i=0; i<ordVec.size(); i++) {
+
     int gNodeIdx = ordVec[i];
+    /* populate _trg - copied from ulist code, variable name changed 	*/
+	  DblNumMat eTEPgNI(evaTrgExaPos(gNodeIdx));
+	  P->trgBoxSize[gNodeIdx] =  eTEPgNI.n();  // curNode.evaTrgExaNum();
+//	  assert (evaTrgExaPosgNodeIdx.n() == curNode.evaTrgExaNum());
+//	  fprintf(stderr,"%d\n",P->trgBoxSize[gNodeIdx]);
+	  for(int t = 0; t < P->trgBoxSize[gNodeIdx]; t++) {
+	    for(int d = 0; d < P->dim; d++)
+	    {
+//	       std::cout<<eTEPgNI(d,t)<<" ";
+	      P->trg_[(t*P->dim)+d+trgIdx] =  eTEPgNI(d,t);
+	    }
+//	     std::cout<<endl;
+	  }
+	  trgIdx += (P->trgBoxSize[gNodeIdx] * P->dim);
+	  /*end populate _trg*/
+	  /*	populate src_	*/
+	  DblNumMat srcPos;
+	  pC( _matmgnt->locPos(UE, _let->center(gNodeIdx),  _let->radius(gNodeIdx), srcPos) );
+//	  fprintf(stderr,"%d %d\n",srcPos.n(),srcPos.m());
+	  //if P->src_ has not been allocated yet, do that
+	  //saes us from precalculating sources
+	  if(P->src_==NULL) {
+		  P->numSrc=srcPos.n()*P->numSrcBox;
+		  P->src_=(float*)calloc(P->numSrc*(P->dim+1),sizeof(float));
+//		  fprintf(stderr,"Allocated %d floats to src_\n",P->numSrc*(P->dim+1));
+	  }
+	  //Copy all three co-ords of source point
+	  for(int i=0;i<srcPos.n();i++) {
+		  for(int d=0;d<srcPos.m();d++) {
+//			  fprintf(stderr,"%d %d\n",i,d);
+			  P->src_[tempsrcidx++]=srcPos(d,i);
+//			  P->src_[tempsrcidx++]=0.0;
+		  }
+		  //copy the density
+		  P->src_[tempsrcidx++]=usrSrcUpwEquDen(gNodeIdx)(i);
+//		  P->src_[tempsrcidx++]=1.0F;
+	  }
+	  P->srcBoxSize[gNodeIdx]=srcPos.n();
+	  /* end populate src_	*/
+    P->uList[gNodeIdx]=(int*)calloc(_let->node(gNodeIdx).Wnodes().size(),sizeof(int));
+//    fprintf(stderr,"%d %d\n",i,gNodeIdx);
     if( _let->node(gNodeIdx).tag() & LET_EVTRNODE) {
       if( _let->terminal(gNodeIdx)==true ) {
 	DblNumVec evaTrgExaVal_gNodeIdx(this->evaTrgExaVal(gNodeIdx));
+//	fprintf(stderr,"above for loop\n");
+//	int tempidx=0;
 	for(vector<int>::iterator vi=_let->node(gNodeIdx).Wnodes().begin(); vi!=_let->node(gNodeIdx).Wnodes().end(); vi++) {
+//		fprintf(stderr,"inside for loop\n");
 
 	  // terminal nodes in LET might be parent nodes in global tree;
 	  // thus, in some cases we instead need to check glbSrcExaNum or glbSrcExaBeg;
 	  // both are guaranteed to be -1 for parent nodes in global tree
 	  // and both guaranteed to be >=0 for leaves in global tree
 	  if(_let->node(*vi).glbSrcExaBeg()>=0 && _let->node(*vi).usrSrcExaNum()*srcDOF<_matmgnt->plnDatSze(UE)) { //use Exa instead
-	    //S2T
+	    //S2TDblNumMat srcPos; pC( _matmgnt->locPos(UE, srcCtr, srcRad, srcPos) );
+//		  fprintf(stderr,"s2t\n");
+//		  exit(1);
+//		  assert(0);
+		  //s2t was called very rarely. The GPU code does not handle it
+		  //It only handles all the m2ts
+		  //If required, a new u-list structure could be used to make 2 gpu calls
 	    pC( SrcEqu2TrgChk_dgemv(usrSrcExaPos(*vi), usrSrcExaNor(*vi), evaTrgExaPos(gNodeIdx), usrSrcExaDen(*vi), evaTrgExaVal_gNodeIdx) );
 	  } else {
 	    //M2T
+//		  fprintf(stderr,"DOH!\n");
+		  //to_call_gpu is true if the w-list is non-empty
+		  to_call_gpu=true;
 	    int vni = *vi;
+//		  fprintf(stderr,"m2t\n");
+//			  exit(1);
+//			  assert(0);
+	    //COMMENT THE FOLLOWING LINE TO PREVENT CPU FROM CALCULATING THE POTENTIALS
 	    pC( UpwEqu2TrgChk_dgemv(_let->center(vni), _let->radius(vni), evaTrgExaPos(gNodeIdx), usrSrcUpwEquDen(*vi), evaTrgExaVal_gNodeIdx) );
+	    //Push the w-list source node into the target's ulist
+		  P->uList[gNodeIdx][P->uListLen[gNodeIdx]]=vni;
+		  P->uListLen[gNodeIdx]++;
+//		  fprintf(stderr,"%d %d %d\n",gNodeIdx,vni,P->uListLen[gNodeIdx]);
+
+
+//		  fprintf(stderr,"%d ",vni);
+
 	  }
 	}
+//	P->uListLen[gNodeIdx]=tempidx;
+//	fprintf(stderr,"\t%d\n",tempidx);
       }
     }
   }
+  //Done: gpu call
+//  fprintf(stderr,"Sources: %d\n",P->numSrc);
+//  for(int i=0;i<4*P->numSrc;i++) {
+//	  fprintf(stderr,"%f\n",P->src_[i]);
+//  }
+  if(to_call_gpu) {
+	  //GPU is still computing everything but the answers are discarded
+	  dense_inter_gpu(P);
+  //done: copy back computed potentials
+  // copied from ulist code
+	  trgIdx=0;
+	  for(int i=ordVec.size()-1; i >= 0; i--) // actually any order is fine
+	  {
+		int gNodeIdx = ordVec[i];
+		if( _let->node(gNodeIdx).tag() & LET_EVTRNODE ) {
+		if( _let->terminal(gNodeIdx)==true ) { //terminal
+		  for(int t = 0; t < P->trgBoxSize[gNodeIdx]; t++) {
+			 // std::cout<<P->trgVal[t+trgIndex]<<" ";
+			  //Uncomment the foll line to use GPU -generated answers
+//			evaTrgExaVal(gNodeIdx)(t)+= P->trgVal[t+trgIdx];
+//			fprintf(stderr,"%f\n",evaTrgExaVal(gNodeIdx)(t));
+//			fprintf(stderr,"%f\n",P->trgVal[t+trgIdx]);
+		  }
+		}
+			}
+		trgIdx += P->trgBoxSize[gNodeIdx];
+	  }
+  }	//to_call_gpu
+
+
+  //Done: cleanup
+  free (P->src_);
+  free (P->trg_);
+  free (P->trgVal);
+  free (P->uListLen);
+  free (P->srcBoxSize);
+  free (P->trgBoxSize);
+  for(int i=ordVec.size()-1; i >= 0; i--)
+	free (P->uList[ordVec[i]]);
+  free (P->uList);
+  free (P);
+
+
 #ifdef HAVE_PAPI
   // read flop counter from papi (first such call initializes library and starts counters; on first call output variables are apparently unchanged)
   // papi_real_time, papi_proc_time, papi_mflops are just discarded
@@ -1108,7 +1239,9 @@ int FMM3d_MPI::evaluate(Vec srcDen, Vec trgVal)
     SETERRQ1(1,"PAPI failed with errorcode %d",papi_retval);
 #endif
   for(size_t i=0; i<ordVec.size(); i++) {
+
 	 int gNodeIdx = ordVec[i];
+//	 fprintf(stderr,"%d %d\n",i,gNodeIdx);
 	 if( _let->node(gNodeIdx).tag() & LET_EVTRNODE) {
 		DblNumVec evaTrgExaVal_gNodeIdx(evaTrgExaVal(gNodeIdx));
 		DblNumVec evaTrgDwnChkVal_gNodeIdx(evaTrgDwnChkVal(gNodeIdx));
