@@ -6,9 +6,10 @@
 
 -repartition  uniformOct % weighted_leaves %blockPart %
 
--distribution uniform %ellipseUniformAngles %
--isogranular
--numsrc 2000000            %number of source points
+%-distribution uniform %ellipseUniformAngles %
+-distribution ellipseUniformAngles
+%-isogranular
+-numsrc 20000            %number of source points
 -preload_numsrc 2000    %number of source points WHEN PRELOADING
 
  -trgs_and_srcs_coinc
